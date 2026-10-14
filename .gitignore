@@ -1,1 +1,9 @@
-vehicles_dataset
+vehicles_dataset/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+.vscode/
+*.pt
+*.pth
