@@ -5,6 +5,7 @@ from .data_loader import dataset, test_dataloader
 from .plot_utils import plot_confusion_matrix
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+torch.manual_seed(42)
 
 model = ConvNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
