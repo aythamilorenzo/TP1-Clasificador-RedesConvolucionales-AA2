@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from .convolutional_network import ConvNet
 from .data_loader import dataset, test_dataloader, train_dataloader, validation_dataloader
+from .plot_utils import plot_training_history
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.manual_seed(42)
@@ -83,3 +84,11 @@ for epoch in range(epochs):
     if epochs_no_improve >= patience:
         print(f'\n*** Early stopping triggered at epoch {epoch+1} ***')
         break
+
+plot_training_history(
+    train_loss_values,
+    validation_loss_values,
+    train_accuracy_values,
+    validation_accuracy_values,
+    save_path='training_history.png'
+)
