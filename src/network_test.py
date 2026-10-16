@@ -12,7 +12,8 @@ torch.backends.cudnn.benchmark = False
 model = ConvNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
 
-model_path = 'best_conv_model.pth'
+results_folder = 'results/config1_baseline'
+model_path = f'{results_folder}/best_conv_model.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
@@ -60,5 +61,5 @@ plot_confusion_matrix(
     y_true,
     y_pred,
     dataset.classes,
-    save_path='test_confusion_matrix.png'
+    save_path=f'{results_folder}/test_confusion_matrix.png'
 )

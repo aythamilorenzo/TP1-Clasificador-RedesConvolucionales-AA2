@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -25,6 +26,9 @@ validation_accuracy_values = []
 patience = 5
 best_val_loss = float('inf')
 epochs_no_improve = 0
+
+results_folder = 'results/config1_baseline'
+os.makedirs(results_folder, exist_ok=True)
 
 print('*** Training Started')
 for epoch in range(epochs):
@@ -81,7 +85,7 @@ for epoch in range(epochs):
     if current_val_loss < best_val_loss:
         best_val_loss = current_val_loss
         epochs_no_improve = 0
-        torch.save(model.state_dict(), 'best_conv_model.pth')
+        torch.save(model.state_dict(), f'{results_folder}/best_conv_model.pth')
     else:
         epochs_no_improve += 1
 
@@ -94,5 +98,5 @@ plot_training_history(
     validation_loss_values,
     train_accuracy_values,
     validation_accuracy_values,
-    save_path='training_history.png'
+    save_path=f'{results_folder}/training_history.png'
 )
