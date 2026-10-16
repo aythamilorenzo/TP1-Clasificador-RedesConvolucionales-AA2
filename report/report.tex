@@ -1,0 +1,184 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish, es-tabla]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage{amsmath, amsfonts, amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{hyperref}
+
+\definecolor{maincolor}{RGB}{30, 64, 175}
+\definecolor{accentcolor}{RGB}{37, 99, 235}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=maincolor,
+    citecolor=maincolor,
+    urlcolor=accentcolor
+}
+
+\graphicspath{{../results/config1_baseline/}}
+
+\title{\textbf{\Large Práctica 1: Clasificación de Imágenes de Vehículos mediante Redes Neuronales Convolucionales (CNN)}\\
+\large Aprendizaje Automático II -- Curso 2026-27}
+
+\author{
+    Carlos Montesdeoca Vega \quad y \quad Aythami Lorenzo Padilla \\
+    \small Asignatura: Aprendizaje Automático II \\
+    \small \url{https://github.com/aythamilorenzo/tp1-clasificador-redesconvolucionales-aa2.git}
+}
+
+\date{Octubre 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+En el marco de la asignatura Aprendizaje Automático II, este trabajo aborda el diseño, entrenamiento y evaluación de un clasificador de imágenes mediante Redes Neuronales Convolucionales (CNN) en PyTorch. El problema consiste en la categorización supervisada de vehículos divididos en 7 clases bien diferenciadas (\textit{auto rickshaws, bikes, cars, motorcycle, plane, ships, trains}). Para garantizar una evaluación justa y evitar la memorización de patrones, las imágenes han sido convertidas al espacio de color RGB, redimensionadas a una resolución fija de $96 \times 96$ píxeles, transformadas a tensores y divididas de forma fija en conjuntos de entrenamiento, validación y prueba. Se ha implementado un mecanismo de parada anticipada (\textit{Early Stopping}) basado en la pérdida de validación para prevenir el sobreajuste. Asimismo, se lleva a cabo un proceso sistemático de búsqueda manual de hiperparámetros comparando diversas configuraciones de arquitectura y entrenamiento.
+\end{abstract}
+
+\section{Introducción y Objetivos}
+El objetivo de esta práctica es abordar un problema de visión por computador mediante el diseño, entrenamiento y ajuste de redes neuronales convolucionales (CNN) sobre un conjunto de datos multiclase de imágenes del mundo real.
+
+Los requisitos principales fijados para la práctica son:
+\begin{itemize}
+    \item Trabajar con un conjunto de datos no trivial compuesto por entre 5 y 15 categorías con al menos 50 imágenes por categoría.
+    \item Implementar un mecanismo de parada anticipada (\textit{Early Stopping}) basado en la pérdida de validación para evitar el sobreajuste.
+    \item Realizar y documentar un proceso sistemático de búsqueda manual de hiperparámetros comparando un mínimo de 5 configuraciones diferentes.
+    \item Alcanzar una tasa de precisión en el conjunto de test independiente superior al 85\%.
+    \item Entregar el código fuente limpio sin comentarios junto con la memoria explicativa que incluya gráficas de rendimiento y la matriz de confusión.
+\end{itemize}
+
+\section{Descripción del Dataset y Preprocesamiento}
+El problema seleccionado consiste en la clasificación de medios de transporte estructurado en 7 clases bien diferenciadas: \textit{auto rickshaws}, \textit{bikes}, \textit{cars}, \textit{motorcycle}, \textit{plane}, \textit{ships} y \textit{trains}. El conjunto contiene 1690 imágenes en total, con una distribución razonablemente equilibrada entre categorías (entre 211 y 256 imágenes por clase).
+
+\subsection{Pipeline de Preprocesamiento}
+Para garantizar la homogeneidad en las entradas entregadas a la red convolucional, se aplica la siguiente cadena de transformaciones a cada imagen:
+\begin{enumerate}
+    \item \textbf{Conversión a espacio RGB:} Se asegura que todas las imágenes tengan 3 canales de color, corrigiendo posibles imágenes en escala de grises o con canal alfa sobrante. Este paso es necesario porque el conjunto contiene imágenes en formato RGBA que de otro modo provocarían un error de dimensionalidad al entrar en la primera capa convolucional.
+    \item \textbf{Redimensionado:} Las imágenes se ajustan a una resolución fija de $96 \times 96$ píxeles mediante \texttt{transforms.Resize()}.
+    \item \textbf{Conversión a Tensor:} Se escalan los valores de los píxeles al rango $[0, 1]$ mediante la función \texttt{transforms.ToTensor()}.
+\end{enumerate}
+
+\subsection{División del Dataset}
+El conjunto completo de datos se divide aleatoriamente en tres subconjuntos independientes garantizando la reproducibilidad del proceso mediante una semilla fijada (\texttt{seed = 42}):
+\begin{itemize}
+    \item \textbf{Entrenamiento (Train) -- 70\%:} Utilizado para el cálculo de gradientes y actualización de los pesos del modelo. 1183 imágenes.
+    \item \textbf{Validación (Validation) -- 15\%:} Utilizado al final de cada época para evaluar la capacidad de generalización y controlar el \textit{Early Stopping}. 253 imágenes.
+    \item \textbf{Prueba (Test) -- 15\%:} Reservado exclusivamente para la evaluación final tras finalizar el entrenamiento. 254 imágenes.
+\end{itemize}
+
+La misma semilla se emplea además para la inicialización de los pesos y para el barajado de los lotes durante el entrenamiento. Cabe señalar que esta reproducibilidad es total en CPU, mientras que en GPU queda supeditada a los algoritmos seleccionados por cuDNN; por ello se fuerza explícitamente el modo determinista mediante \texttt{cudnn.deterministic = True} y \texttt{cudnn.benchmark = False}.
+
+\section{Arquitectura del Modelo Base (ConvNet)}
+La red convolucional propuesta en el modelo base se compone de tres bloques convolucionales seguidos de dos capas completamente conectadas (\textit{Fully Connected}).
+
+\begin{table}[H]
+\centering
+\caption{Estructura detallada de la arquitectura ConvNet base.}
+\label{tab:arquitectura}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X l l r}
+\toprule
+\textbf{Capa / Bloque} & \textbf{Configuración} & \textbf{Activación / Operación} & \textbf{Salida} \\
+\midrule
+Entrada & Imágenes RGB ($96 \times 96$) & -- & $(3, 96, 96)$ \\
+Bloque Convolucional 1 & Conv2D(3 $\rightarrow$ 16, $k=5, p=2$) & ReLU + MaxPool2d($2 \times 2$) & $(16, 48, 48)$ \\
+Bloque Convolucional 2 & Conv2D(16 $\rightarrow$ 32, $k=5, p=2$) & ReLU + MaxPool2d($2 \times 2$) & $(32, 24, 24)$ \\
+Bloque Convolucional 3 & Conv2D(32 $\rightarrow$ 64, $k=5, p=2$) & ReLU + MaxPool2d($2 \times 2$) & $(64, 12, 12)$ \\
+Aplanado (Flatten) & Vectorización & -- & $(9216)$ \\
+Capa Oculta (FC1) & Linear($9216 \rightarrow 128$) & ReLU + Dropout($p=0.25$) & $(128)$ \\
+Capa de Salida (FC2) & Linear($128 \rightarrow 7$) & Lineal (CrossEntropyLoss) & $(7)$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Estrategia de Parada Anticipada (Early Stopping)}
+Para prevenir el sobreajuste se monitoriza la pérdida de validación (\textit{Validation Loss}) al término de cada época. Se define una paciencia de 5 épocas (\texttt{patience = 5}). Si la pérdida de validación no mejora respecto al mínimo histórico alcanzado, el contador aumenta; si el contador llega al límite de la paciencia, el entrenamiento se interrumpe.
+
+Durante todo el proceso, cada vez que la pérdida de validación alcanza un nuevo mínimo histórico se guardan los pesos del modelo en el archivo \texttt{best\_conv\_model.pth}. Esos son los pesos con los que se evalúa posteriormente el modelo sobre el conjunto de prueba, de modo que la evaluación final no utiliza el estado final de la red sino su punto óptimo de generalización.
+
+\section{Resultados del Experimento 1 (Baseline)}
+El primer experimento se ejecutó utilizando el optimizador \textbf{Adam} con una tasa de aprendizaje $\eta = 0.001$, un tamaño de lote de 32 imágenes y un máximo inicial de 15 épocas.
+
+\subsection{Evolución del Entrenamiento}
+El mecanismo de parada anticipada se activó en la \textbf{época 10}, tras cinco épocas consecutivas sin mejorar la pérdida de validación. No obstante, el mínimo histórico de dicha pérdida se alcanzó en la \textbf{época 5}, que es el punto cuyos pesos se conservaron para la evaluación posterior. La Tabla~\ref{tab:resultados_exp1} recoge las métricas medidas sobre ese mismo punto óptimo, de modo que las tres filas corresponden a un único modelo.
+
+\begin{table}[H]
+\centering
+\caption{Métricas obtenidas en el Experimento 1 (Modelo Base), medidas sobre los pesos de la época 5.}
+\label{tab:resultados_exp1}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Conjunto de Datos} & \textbf{Pérdida (Loss)} & \textbf{Precisión (Accuracy)} \\
+\midrule
+Entrenamiento & 0.4249 & 85.21\% \\
+Validación & 0.5032 & 81.82\% \\
+\textbf{Prueba (Test)} & \textbf{0.4141} & \textbf{87.80\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\linewidth]{training_history.png}
+\caption{Evolución de la pérdida y precisión en entrenamiento y validación (Experimento 1).}
+\label{fig:curvas_rendimiento}
+\end{figure}
+
+Como se aprecia en la Figura~\ref{fig:curvas_rendimiento}, la precisión de entrenamiento sigue creciendo de forma sostenida hasta superar el 98\%, mientras que la de validación se estabiliza entre el 82\% y el 85\%. A partir de la quinta época la brecha entre ambas curvas se ensancha de manera consistente: la pérdida de validación deja de mejorar y oscila al alza mientras la de entrenamiento continúa descendiendo. Este es el comportamiento característico del sobreajuste y justifica la intervención de la parada anticipada, que actúa antes de que la red llegue a memorizar el conjunto de entrenamiento.
+
+En el punto óptimo seleccionado la diferencia entre ambas precisiones es de apenas 3.4 puntos, lo que indica que el modelo aún generaliza correctamente en el instante en que se detiene el entrenamiento.
+
+\subsection{Evaluación en el Conjunto de Test y Matriz de Confusión}
+Tras la evaluación aislada sobre el conjunto de test utilizando los mejores pesos guardados, el modelo alcanzó una precisión del \textbf{87.80\%}, superando el objetivo fijado del 85\%.
+
+La precisión medida sobre el conjunto de prueba resulta superior a la registrada en validación. Ambos conjuntos son muestras disjuntas de tamaño comparable (254 y 253 imágenes respectivamente), de modo que una diferencia de esta magnitud es perfectamente compatible con el ruido de muestreo esperado a ese tamaño y no constituye una evidencia de que el modelo cometa un error sistemático.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\linewidth]{test_confusion_matrix.png}
+\caption{Matriz de confusión obtenida sobre el conjunto de test (Experimento 1).}
+\label{fig:matriz_confusion}
+\end{figure}
+
+El análisis de la matriz de confusión (Figura~\ref{fig:matriz_confusion}) permite extraer las siguientes conclusiones sobre las 7 categorías:
+\begin{itemize}
+    \item \textbf{Clases con alto rendimiento:} Las categorías con patrones geométricos distintivos como \textit{plane}, \textit{ships} y \textit{trains} presentan tasas de acierto elevadas.
+    \item \textbf{Confusiones principales:} Se observan ligeras confusiones entre clases visualmente similares como \textit{bikes} frente a \textit{motorcycle}, así como entre \textit{auto rickshaws} y \textit{cars} debido a la presencia de contextos urbanos parecidos.
+\end{itemize}
+
+\section{Plan de Búsqueda de Hiperparámetros (5 Experimentos)}
+De acuerdo con las instrucciones de la asignatura, se llevará a cabo un proceso sistemático de ajuste manual comparando 5 configuraciones distintas. Cada experimento varía un hiperparámetro concreto sobre la mejor configuración previa, de modo que quede aislando su efecto sobre la precisión final.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Tabla comparativa del plan de experimentos de hiperparámetros.}
+\label{tab:experimentos}
+\begin{tabularx}{\linewidth}{c X c c c c c r}
+\toprule
+\textbf{Exp.} & \textbf{Arquitectura} & \textbf{\'Epocas} & \textbf{LR} & \textbf{Batch} & \textbf{Activaci\'on} & \textbf{Dropout} & \textbf{Acc. Test} \\
+\midrule
+\textbf{1} & 3 Conv (16, 32, 64) + FC 128 & 15 & 0.001 & 32 & ReLU & 0.25 & \textbf{87.80\%} \\
+\textbf{2} & 3 Conv (16, 32, 64) + FC 128 & 15 & 0.001 & 64 & ReLU & 0.25 & \textit{Pendiente} \\
+\textbf{3} & 4 Conv (16, 32, 64, 128) + FC 256 & 15 & 0.001 & 32 & ReLU & 0.25 & \textit{Pendiente} \\
+\textbf{4} & \'Optima de Exp.\ 1--3 & 15 & 0.0003 & 32 & ReLU & 0.25 & \textit{Pendiente} \\
+\textbf{5} & \'Optima de Exp.\ 1--4 & 15 & 0.0003 & 32 & LeakyReLU & 0.40 & \textit{Pendiente} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En todas las configuraciones se aplica \textit{Early Stopping} con una paciencia de 5 épocas sobre la pérdida de validación, por lo que el número efectivo de épocas ejecutadas es siempre inferior al máximo indicado en la tabla. La configuración óptima entre experimentos se selecciona en cada paso a partir de la precisión de validación obtenida, sin inspeccionar nunca el conjunto de prueba.
+
+\section{Conclusiones Preliminares}
+El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación. Los próximos pasos se centrarán en la ejecución de los experimentos 2 al 5 para analizar si modificaciones en la profundidad de la red, el tamaño de lote, la tasa de aprendizaje o la función de activación permiten superar la marca del 90\% de precisión.
+
+\end{document}
