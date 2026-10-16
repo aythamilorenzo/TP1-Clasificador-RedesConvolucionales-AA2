@@ -30,16 +30,17 @@ with torch.no_grad():
         outputs = model(images)
         loss = criterion(outputs, labels)
 
-        test_loss += loss.item()
+        batch_size = labels.size(0)
+        test_loss += loss.item() * batch_size
+        test_total += batch_size
 
         _, predicted = torch.max(outputs.data, 1)
-        test_total += labels.size(0)
         test_correct += (predicted == labels).sum().item()
 
         y_true.extend(labels.cpu().numpy())
         y_pred.extend(predicted.cpu().numpy())
 
-final_test_loss = test_loss / len(test_dataloader)
+final_test_loss = test_loss / test_total
 final_test_acc = test_correct / test_total
 
 print(f'\n==================================================')

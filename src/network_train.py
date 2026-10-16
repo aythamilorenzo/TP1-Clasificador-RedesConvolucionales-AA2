@@ -40,13 +40,14 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
+        batch_size = labels.size(0)
+        train_loss += loss.item() * batch_size
+        train_total += batch_size
 
         _, predicted = torch.max(outputs.data, 1)
-        train_total += labels.size(0)
         train_correct += (predicted == labels).sum().item()
 
-    train_loss_values.append(train_loss / len(train_dataloader))
+    train_loss_values.append(train_loss / train_total)
     train_accuracy_values.append(train_correct / train_total)
 
     with torch.no_grad():
@@ -60,13 +61,14 @@ for epoch in range(epochs):
             outputs = model(images)
             valid_loss = criterion(outputs, labels)
 
-            validation_loss += valid_loss.item()
+            batch_size = labels.size(0)
+            validation_loss += valid_loss.item() * batch_size
+            val_total += batch_size
 
             _, predicted = torch.max(outputs.data, 1)
-            val_total += labels.size(0)
             val_correct += (predicted == labels).sum().item()
 
-        current_val_loss = validation_loss / len(validation_dataloader)
+        current_val_loss = validation_loss / val_total
         current_val_acc = val_correct / val_total
 
         validation_loss_values.append(current_val_loss)
