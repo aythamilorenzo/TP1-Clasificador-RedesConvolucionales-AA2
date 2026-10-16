@@ -7,6 +7,8 @@ from .plot_utils import plot_training_history
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.manual_seed(42)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 model = ConvNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
