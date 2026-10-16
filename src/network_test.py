@@ -29,13 +29,13 @@ with torch.no_grad():
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)
         loss = criterion(outputs, labels)
-        
+
         test_loss += loss.item()
-        
+
         _, predicted = torch.max(outputs.data, 1)
         test_total += labels.size(0)
         test_correct += (predicted == labels).sum().item()
-        
+
         y_true.extend(labels.cpu().numpy())
         y_pred.extend(predicted.cpu().numpy())
 
@@ -54,8 +54,8 @@ else:
     print("Warning: Target of 85% accuracy not reached. Adjust hyperparameters.")
 
 plot_confusion_matrix(
-    y_true, 
-    y_pred, 
-    dataset.classes, 
+    y_true,
+    y_pred,
+    dataset.classes,
     save_path='test_confusion_matrix.png'
 )
