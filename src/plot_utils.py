@@ -25,7 +25,6 @@ def plot_training_history(train_loss, val_loss, train_acc, val_acc, save_path='t
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
-    plt.show()
     print(f"[*] Training curves saved to '{save_path}'")
 
 
@@ -40,5 +39,4 @@ def plot_confusion_matrix(y_true, y_pred, class_names, save_path='confusion_matr
     plt.ylabel('True Class')
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
-    plt.show()
     print(f"[*] Confusion matrix saved to '{save_path}'")
