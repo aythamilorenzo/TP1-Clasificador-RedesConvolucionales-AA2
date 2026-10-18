@@ -113,22 +113,27 @@ De acuerdo con las instrucciones de la asignatura, se compara un total de 5 conf
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Tabla comparativa del plan de experimentos de hiperparámetros. \textbf{Ép.} es el número máximo de épocas y \textbf{Pac.} la paciencia del \textit{Early Stopping}.}
+\caption{Tabla comparativa del plan de experimentos de hiperparámetros. Las columnas se separan por hiperparámetro para que se aprecie que cada configuración varía una sola cosa respecto al modelo base. \textbf{Ép.} es el número máximo de épocas y \textbf{Pac.} la paciencia del \textit{Early Stopping}.}
 \label{tab:experimentos}
-\begin{tabularx}{\linewidth}{c X c c c c c r}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\linewidth}{c X c c c c c c r}
 \toprule
-\textbf{Exp.} & \textbf{Arquitectura} & \textbf{Ép.} & \textbf{Pac.} & \textbf{LR} & \textbf{Batch} & \textbf{Act.} & \textbf{Acc. Test} \\
+\textbf{Exp.} & \textbf{Capas conv.} & \textbf{Neu. FC1} & \textbf{Ép.} & \textbf{Pac.} & \textbf{LR} & \textbf{Batch} & \textbf{Act.} & \textbf{Acc. Test} \\
 \midrule
-\textbf{1} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 32 & ReLU & \textbf{87.80\%} \\
-\textbf{2} & 3 Conv (16, 32, 64) + FC 128 & 50 & 10 & 0.0001 & 32 & ReLU & \textbf{88.98\%} \\
-\textbf{3} & 4 Conv (16, 32, 64, 128) + FC 256 & 15 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
-\textbf{4} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 64 & ReLU & \textit{Pendiente} \\
-\textbf{5} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 32 & LeakyReLU & \textit{Pendiente} \\
+\textbf{1} & 3 (16, 32, 64) & 128 & 15 & 5 & 0.001 & 32 & ReLU & \textbf{87.80\%} \\
+\textbf{2} & 3 (16, 32, 64) & 128 & 50 & 10 & 0.0001 & 32 & ReLU & \textbf{88.98\%} \\
+\textbf{3} & 4 (16, 32, 64, 128) & 128 & 50 & 5 & 0.001 & 32 & ReLU & 84.25\% \\
+\textbf{4} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 64 & ReLU & \textit{Pendiente} \\
+\textbf{5} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 32 & LeakyReLU & \textit{Pendiente} \\
+\textbf{6} & 3 (16, 32, 64) & 32 & 50 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
 \bottomrule
 \end{tabularx}
+\setlength{\tabcolsep}{6pt}
 \end{table}
 
-En el Experimento 2 los valores de épocas y paciencia varían de forma conjunta con la tasa de aprendizaje, ya que los tres forman una única variable experimental: reducir el paso sin ampliar el presupuesto de iteraciones dejaría el modelo a medias y la comparación carecería de sentido. El optimizador se mantiene fijo (\textbf{Adam}) en las cinco configuraciones para aislar el efecto del resto de hiperparámetros.
+En el Experimento 2 los valores de épocas y paciencia varían de forma conjunta con la tasa de aprendizaje, ya que los tres forman una única variable experimental: reducir el paso sin ampliar el presupuesto de iteraciones dejaría el modelo a medias y la comparación carecería de sentido. El optimizador se mantiene fijo (\textbf{Adam}) en las seis configuraciones para aislar el efecto del resto de hiperparámetros.
+
+Se descartó además limitar todas las configuraciones al mismo presupuesto de épocas. Cuando una red tarda más en converger, por ser más profunda o por llevar un tamaño de lote mayor que reduce los pasos de gradiente por época, un tope arbitrario la corta a medias y la comparación deja de ser justa. Por eso el presupuesto se fija de forma generosa y es el \textit{Early Stopping}, y no el número de épocas, quien decide cuándo termina cada experimento. El Experimento 1 es la única excepción, y aun así se detuvo por paciencia y no por tope, con lo que su resultado no se ve afectado.
 
 En todos los casos la selección del mejor punto de parada se realiza sobre la pérdida de validación, sin inspeccionar nunca el conjunto de prueba hasta la evaluación final.
 
@@ -227,9 +232,44 @@ Sin embargo, conviene no sobrevalorar esa última cifra. Dado que la división d
 
 Lo que sí queda demostrado en este experimento es el efecto de la tasa de aprendizaje sobre la \textbf{dinámica} del entrenamiento: la convergencia es mucho más lenta, la ventana de búsqueda se alarga de 10 a 48 épocas y el modelo explora el mínimo en lugar de atravesarlo. El efecto sobre la precisión final, con estas muestras, no puede determinarse.
 
+\subsection{Experimento 3: red más profunda}
+
+El tercer experimento añade una cuarta capa convolucional con 128 filtros, con el mismo tamaño de kernel y padding que las anteriores. El número de neuronas de la capa densa se mantiene en 128, de modo que la profundidad es el único hiperparámetro que cambia respecto al modelo base.
+
+Conviene reparar en una consecuencia no buscada de esa decisión. Al introducir un cuarto bloque de submuestreo, el vector que llega a la capa densa pasa de 9216 a 4608 elementos, y al mantener las 128 neuronas el número de parámetros de \texttt{fc1} se reduce a la mitad, de 1.179.648 a 589.824. En conjunto la red \textbf{no crece sino que encoge}: baja de 1.245.991 a 861.095 parámetros, un 31\% menos. El experimento mide por tanto el efecto de una red más profunda y a la vez más ligera.
+
+La primera ejecución se limitó a las 15 épocas heredadas del modelo base y resultó insuficiente: en la última época la pérdida de validación acababa de alcanzar su mínimo histórico (0.3839) y el contador de la paciencia estaba a cero, de forma que el corte no lo produjo el \textit{Early Stopping} sino el presupuesto de épocas. Se amplió dicho presupuesto a 50 épocas dejando intacta la paciencia, que viaja unida a la tasa de aprendizaje y aquí no cambia. Con ese margen el entrenamiento se detuvo en la época 20, sin que se mejorara nunca el mínimo de la época 15, con lo que los pesos conservados y las métricas finales quedaron exactamente igual. Este comportamiento confirma además que la reproducibilidad es efectiva: las primeras 15 épocas se repitieron idénticas hasta la cuarta decimal.
+
+\begin{table}[H]
+\centering
+\caption{Métricas obtenidas en el Experimento 3 (red de cuatro capas convolucionales), medidas sobre los pesos de la época 15.}
+\label{tab:resultados_exp3}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Conjunto de Datos} & \textbf{Pérdida (Loss)} & \textbf{Precisión (Accuracy)} \\
+\midrule
+Entrenamiento & 0.0825 & 97.04\% \\
+Validación & 0.3839 & 88.14\% \\
+\textbf{Prueba (Test)} & \textbf{0.6654} & \textbf{84.25\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Una validación excelente y un test discrepo}
+
+La combinación de métricas que arroja este experimento es inusual y merece atención. En validación la configuración 3 es \textbf{la mejor de las tres}: registra la pérdida más baja (0.3839 frente a 0.4813 y 0.5032) y la precisión más alta (88.14\% frente a 85.38\% y 81.82\%). Sin embargo, sobre el conjunto de prueba es \textbf{la peor}, con un 84.25\% frente al 87.80\% y al 88.98\% de los experimentos anteriores.
+
+No conviene interpretar esa discrepancia como un fallo sistemático del modelo. Los conjuntos de validación y de prueba son muestras independientes de tamaños comparables, 253 y 254 imágenes, de modo que el propio desajuste entre ambos tiene un margen de error de unos cuatro puntos. Para apreciar cuánto se mueve por sí solo basta comparar con el modelo base, donde la diferencia va en el sentido contrario: 81.82\% en validación frente a 87.80\% en prueba. Entre las dos configuraciones el desajuste varía en más de nueve puntos sin que ninguna haya cambiado de estrategia de entrenamiento, y esa oscilación es precisamente la magnitud que cabe esperar del ruido de muestreo a ese tamaño.
+
+La diferencia de precisión sobre el conjunto de prueba tampoco es significativa: respecto al modelo base hay nueve imágenes menos aciertas sobre 254, con un estadístico $z = -1.15$ y un valor $p = 0.25$.
+
+\subsubsection{Lectura del experimento}
+
+En conjunto, el Experimento 3 no aporta evidencia de que una capa convolucional adicional mejore el clasificador, y sí deja dos observaciones útiles. La primera es que la red más profunda converge de forma más irregular: la pérdida de validación oscila de forma acusada entre las épocas 9 y 20, y en la 18 se dispara hasta 0.8611. Se sobreajusta además con más fuerza, ya que en la época 17 la precisión de entrenamiento alcanza el 98.90\% mientras la pérdida de validación ha dejado de descender. La segunda es que la pérdida sobre el conjunto de prueba resulta considerablemente más alta que en las otras dos configuraciones, 0.6654 frente a 0.4141 y 0.3778, lo que sugiere que la red profunda comete algunos errores con mucha confianza.
+
 \section{Conclusiones Preliminares}
 El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación.
 
-En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. Los experimentos restantes 3 al 5 abordarán la profundidad de la red, el tamaño de lote y la función de activación, con el objetivo de superar la marca del 90\% de precisión.
+En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. El Experimento 3, que profundizaba la red con una capa convolucional adicional, tampoco aportó ninguna mejora medible: alcanzó la pérdida de validación más baja de las tres configuraciones, pero esa ventaja no se trasladó al conjunto de prueba. Los experimentos restantes 4 al 6 abordarán el tamaño de lote, la función de activación y el número de neuronas de la capa densa.
 
 \end{document}
