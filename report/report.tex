@@ -24,8 +24,6 @@
     urlcolor=accentcolor
 }
 
-\graphicspath{{../results/config1_baseline/}}
-
 \title{\textbf{\Large Práctica 1: Clasificación de Imágenes de Vehículos mediante Redes Neuronales Convolucionales (CNN)}\\
 \large Aprendizaje Automático II -- Curso 2026-27}
 
@@ -76,7 +74,7 @@ El conjunto completo de datos se divide aleatoriamente en tres subconjuntos inde
     \item \textbf{Prueba (Test) -- 15\%:} Reservado exclusivamente para la evaluación final tras finalizar el entrenamiento. 254 imágenes.
 \end{itemize}
 
-La misma semilla se emplea además para la inicialización de los pesos y para el barajado de los lotes durante el entrenamiento. Cabe señalar que esta reproducibilidad es total en CPU, mientras que en GPU queda supeditada a los algoritmos seleccionados por cuDNN; por ello se fuerza explícitamente el modo determinista mediante \texttt{cudnn.deterministic = True} y \texttt{cudnn.benchmark = False}.
+La misma semilla se emplea además para la inicialización de los pesos y para el barajado de los lotes durante el entrenamiento. Cabe señalar que esta reproducibilidad es total en CPU, mientras que en GPU queda supeditada a los algoritmos seleccionados por cuDNN; por ello se fuerza explícitamente el modo determinista mediante \texttt{cudnn.deterministic = True} y \texttt{cudnn.benchmark = False}. Gracias a ello, la repetición de una misma configuración devuelve exactamente los mismos resultados.
 
 \section{Arquitectura del Modelo Base (ConvNet)}
 La red convolucional propuesta en el modelo base se compone de tres bloques convolucionales seguidos de dos capas completamente conectadas (\textit{Fully Connected}).
@@ -100,15 +98,46 @@ Capa de Salida (FC2) & Linear($128 \rightarrow 7$) & Lineal (CrossEntropyLoss) &
 \end{tabularx}
 \end{table}
 
+Conviene señalar que los parámetros no están repartidos de forma uniforme: la capa \texttt{fc1} acumula 1.179.776 pesos, lo que supone el 94.7\% del total de la red (1.245.991). Las tres capas convolucionales, con sus filtros compartidos espacialmente, apenas suman el 5.3\%. Este desequilibrio es una consecuencia directa del aplanado, que entrega 9216 valores a una única capa densa sin ninguna compartición.
+
 \subsection{Estrategia de Parada Anticipada (Early Stopping)}
-Para prevenir el sobreajuste se monitoriza la pérdida de validación (\textit{Validation Loss}) al término de cada época. Se define una paciencia de 5 épocas (\texttt{patience = 5}). Si la pérdida de validación no mejora respecto al mínimo histórico alcanzado, el contador aumenta; si el contador llega al límite de la paciencia, el entrenamiento se interrumpe.
+Para prevenir el sobreajuste se monitoriza la pérdida de validación (\textit{Validation Loss}) al término de cada época. Se define una paciencia inicial de 5 épocas (\texttt{patience = 5}). Si la pérdida de validación no mejora respecto al mínimo histórico alcanzado, el contador aumenta; si el contador llega al límite de la paciencia, el entrenamiento se interrumpe.
 
 Durante todo el proceso, cada vez que la pérdida de validación alcanza un nuevo mínimo histórico se guardan los pesos del modelo en el archivo \texttt{best\_conv\_model.pth}. Esos son los pesos con los que se evalúa posteriormente el modelo sobre el conjunto de prueba, de modo que la evaluación final no utiliza el estado final de la red sino su punto óptimo de generalización.
 
-\section{Resultados del Experimento 1 (Baseline)}
-El primer experimento se ejecutó utilizando el optimizador \textbf{Adam} con una tasa de aprendizaje $\eta = 0.001$, un tamaño de lote de 32 imágenes y un máximo inicial de 15 épocas.
+La paciencia no se mantiene fija en todos los experimentos: al reducirse la tasa de aprendizaje en el Experimento 2 hubo que ampliarla, porque un paso más pequeño tarda más en encontrar un mínimo nuevo y con el valor original el entrenamiento se habría cortado antes de llegar a él.
 
-\subsection{Evolución del Entrenamiento}
+\section{Plan de Búsqueda de Hiperparámetros}
+De acuerdo con las instrucciones de la asignatura, se compara un total de 5 configuraciones distintas. La estrategia seguida es la de \textbf{cambiar una sola variable cada vez respecto al modelo base}: todas las configuraciones arrancan de los mismos pesos iniciales y la misma arquitectura del Experimento 1, de modo que cualquier diferencia observada en los resultados pueda atribuirse al hiperparámetro que se ha modificado. La alternativa de ir acumulando cambios sobre la configuración mejor hasta la momento se descartó deliberadamente, ya que con un conjunto de test de 254 imágenes las diferencias pequeñas son indistinguibles del ruido y encadenar decisiones sobre ellas conduciría a elegir el camino por azar.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Tabla comparativa del plan de experimentos de hiperparámetros. \textbf{Ép.} es el número máximo de épocas y \textbf{Pac.} la paciencia del \textit{Early Stopping}.}
+\label{tab:experimentos}
+\begin{tabularx}{\linewidth}{c X c c c c c r}
+\toprule
+\textbf{Exp.} & \textbf{Arquitectura} & \textbf{Ép.} & \textbf{Pac.} & \textbf{LR} & \textbf{Batch} & \textbf{Act.} & \textbf{Acc. Test} \\
+\midrule
+\textbf{1} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 32 & ReLU & \textbf{87.80\%} \\
+\textbf{2} & 3 Conv (16, 32, 64) + FC 128 & 50 & 10 & 0.0001 & 32 & ReLU & \textbf{88.98\%} \\
+\textbf{3} & 4 Conv (16, 32, 64, 128) + FC 256 & 15 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
+\textbf{4} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 64 & ReLU & \textit{Pendiente} \\
+\textbf{5} & 3 Conv (16, 32, 64) + FC 128 & 15 & 5 & 0.001 & 32 & LeakyReLU & \textit{Pendiente} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+En el Experimento 2 los valores de épocas y paciencia varían de forma conjunta con la tasa de aprendizaje, ya que los tres forman una única variable experimental: reducir el paso sin ampliar el presupuesto de iteraciones dejaría el modelo a medias y la comparación carecería de sentido. El optimizador se mantiene fijo (\textbf{Adam}) en las cinco configuraciones para aislar el efecto del resto de hiperparámetros.
+
+En todos los casos la selección del mejor punto de parada se realiza sobre la pérdida de validación, sin inspeccionar nunca el conjunto de prueba hasta la evaluación final.
+
+\section{Resultados Experimentales}
+
+\subsection{Experimento 1: modelo base}
+El primer experimento se ejecutó utilizando el optimizador \textbf{Adam} con una tasa de aprendizaje $\eta = 0.001$, un tamaño de lote de 32 imágenes y un máximo de 15 épocas con una paciencia de 5.
+
+\subsubsection{Evolución del entrenamiento}
 El mecanismo de parada anticipada se activó en la \textbf{época 10}, tras cinco épocas consecutivas sin mejorar la pérdida de validación. No obstante, el mínimo histórico de dicha pérdida se alcanzó en la \textbf{época 5}, que es el punto cuyos pesos se conservaron para la evaluación posterior. La Tabla~\ref{tab:resultados_exp1} recoge las métricas medidas sobre ese mismo punto óptimo, de modo que las tres filas corresponden a un único modelo.
 
 \begin{table}[H]
@@ -128,57 +157,79 @@ Validación & 0.5032 & 81.82\% \\
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.90\linewidth]{training_history.png}
+\includegraphics[width=0.90\linewidth]{../results/config1_baseline/training_history.png}
 \caption{Evolución de la pérdida y precisión en entrenamiento y validación (Experimento 1).}
-\label{fig:curvas_rendimiento}
+\label{fig:curvas_exp1}
 \end{figure}
 
-Como se aprecia en la Figura~\ref{fig:curvas_rendimiento}, la precisión de entrenamiento sigue creciendo de forma sostenida hasta superar el 98\%, mientras que la de validación se estabiliza entre el 82\% y el 85\%. A partir de la quinta época la brecha entre ambas curvas se ensancha de manera consistente: la pérdida de validación deja de mejorar y oscila al alza mientras la de entrenamiento continúa descendiendo. Este es el comportamiento característico del sobreajuste y justifica la intervención de la parada anticipada, que actúa antes de que la red llegue a memorizar el conjunto de entrenamiento.
+Como se aprecia en la Figura~\ref{fig:curvas_exp1}, la precisión de entrenamiento sigue creciendo de forma sostenida hasta superar el 98\%, mientras que la de validación se estabiliza entre el 82\% y el 85\%. A partir de la quinta época la brecha entre ambas curvas se ensancha de manera consistente: la pérdida de validación deja de mejorar y oscila al alza mientras la de entrenamiento continúa descendiendo. Este es el comportamiento característico del sobreajuste y justifica la intervención de la parada anticipada, que actúa antes de que la red llegue a memorizar el conjunto de entrenamiento.
 
 En el punto óptimo seleccionado la diferencia entre ambas precisiones es de apenas 3.4 puntos, lo que indica que el modelo aún generaliza correctamente en el instante en que se detiene el entrenamiento.
 
-\subsection{Evaluación en el Conjunto de Test y Matriz de Confusión}
+\subsubsection{Evaluación en el conjunto de test}
 Tras la evaluación aislada sobre el conjunto de test utilizando los mejores pesos guardados, el modelo alcanzó una precisión del \textbf{87.80\%}, superando el objetivo fijado del 85\%.
 
 La precisión medida sobre el conjunto de prueba resulta superior a la registrada en validación. Ambos conjuntos son muestras disjuntas de tamaño comparable (254 y 253 imágenes respectivamente), de modo que una diferencia de esta magnitud es perfectamente compatible con el ruido de muestreo esperado a ese tamaño y no constituye una evidencia de que el modelo cometa un error sistemático.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.65\linewidth]{test_confusion_matrix.png}
+\includegraphics[width=0.65\linewidth]{../results/config1_baseline/test_confusion_matrix.png}
 \caption{Matriz de confusión obtenida sobre el conjunto de test (Experimento 1).}
-\label{fig:matriz_confusion}
+\label{fig:matriz_confusion_exp1}
 \end{figure}
 
-El análisis de la matriz de confusión (Figura~\ref{fig:matriz_confusion}) permite extraer las siguientes conclusiones sobre las 7 categorías:
+El análisis de la matriz de confusión (Figura~\ref{fig:matriz_confusion_exp1}) permite extraer las siguientes conclusiones sobre las 7 categorías:
 \begin{itemize}
     \item \textbf{Clases con alto rendimiento:} Las categorías con patrones geométricos distintivos como \textit{plane}, \textit{ships} y \textit{trains} presentan tasas de acierto elevadas.
     \item \textbf{Confusiones principales:} Se observan ligeras confusiones entre clases visualmente similares como \textit{bikes} frente a \textit{motorcycle}, así como entre \textit{auto rickshaws} y \textit{cars} debido a la presencia de contextos urbanos parecidos.
 \end{itemize}
 
-\section{Plan de Búsqueda de Hiperparámetros (5 Experimentos)}
-De acuerdo con las instrucciones de la asignatura, se llevará a cabo un proceso sistemático de ajuste manual comparando 5 configuraciones distintas. Cada experimento varía un hiperparámetro concreto sobre la mejor configuración previa, de modo que quede aislando su efecto sobre la precisión final.
+\subsection{Experimento 2: tasa de aprendizaje reducida}
+En este segundo experimento lo único que se modifica respecto al modelo base es la tasa de aprendizaje del optimizador, que pasa de $\eta = 0.001$ a $\eta = 0.0001$, es decir, un orden de magnitud por debajo. Como el paso del gradiente se reduce diez veces, el modelo necesita muchas más iteraciones para recorrer la misma distancia, por lo que se amplía de forma asociada el presupuesto de épocas (de 15 a 50) y la paciencia (de 5 a 10).
+
+El entrenamiento se detuvo en la \textbf{época 48}, habiendo alcanzado el mínimo histórico de pérdida de validación en la \textbf{época 38}. Las métricas de la Tabla~\ref{tab:resultados_exp2} corresponden a ese punto.
 
 \begin{table}[H]
 \centering
-\footnotesize
-\caption{Tabla comparativa del plan de experimentos de hiperparámetros.}
-\label{tab:experimentos}
-\begin{tabularx}{\linewidth}{c X c c c c c r}
+\caption{Métricas obtenidas en el Experimento 2 (tasa de aprendizaje 0.0001), medidas sobre los pesos de la época 38.}
+\label{tab:resultados_exp2}
+\begin{tabular}{l c c}
 \toprule
-\textbf{Exp.} & \textbf{Arquitectura} & \textbf{\'Epocas} & \textbf{LR} & \textbf{Batch} & \textbf{Activaci\'on} & \textbf{Dropout} & \textbf{Acc. Test} \\
+\textbf{Conjunto de Datos} & \textbf{Pérdida (Loss)} & \textbf{Precisión (Accuracy)} \\
 \midrule
-\textbf{1} & 3 Conv (16, 32, 64) + FC 128 & 15 & 0.001 & 32 & ReLU & 0.25 & \textbf{87.80\%} \\
-\textbf{2} & 3 Conv (16, 32, 64) + FC 128 & 15 & 0.001 & 64 & ReLU & 0.25 & \textit{Pendiente} \\
-\textbf{3} & 4 Conv (16, 32, 64, 128) + FC 256 & 15 & 0.001 & 32 & ReLU & 0.25 & \textit{Pendiente} \\
-\textbf{4} & \'Optima de Exp.\ 1--3 & 15 & 0.0003 & 32 & ReLU & 0.25 & \textit{Pendiente} \\
-\textbf{5} & \'Optima de Exp.\ 1--4 & 15 & 0.0003 & 32 & LeakyReLU & 0.40 & \textit{Pendiente} \\
+Entrenamiento & 0.1574 & 94.76\% \\
+Validación & 0.4813 & 85.38\% \\
+\textbf{Prueba (Test)} & \textbf{0.3778} & \textbf{88.98\%} \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
-En todas las configuraciones se aplica \textit{Early Stopping} con una paciencia de 5 épocas sobre la pérdida de validación, por lo que el número efectivo de épocas ejecutadas es siempre inferior al máximo indicado en la tabla. La configuración óptima entre experimentos se selecciona en cada paso a partir de la precisión de validación obtenida, sin inspeccionar nunca el conjunto de prueba.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.90\linewidth]{../results/config2_lr0001/training_history.png}
+\caption{Evolución de la pérdida y precisión en entrenamiento y validación (Experimento 2).}
+\label{fig:curvas_exp2}
+\end{figure}
+
+\subsubsection{Comportamiento de la pérdida de validación}
+La curva del Experimento 2 (Figura~\ref{fig:curvas_exp2}) se comporta de forma notablemente distinta a la del modelo base. Mientras que con $\eta = 0.001$ la pérdida de validación alcanzaba su mínimo en la época 5 y a partir de ahí subía de forma prácticamente monótona, con $\eta = 0.0001$ la curva desciende mucho más despacio y, una vez que se estabiliza alrededor de la época 20, \textbf{oscila} entre 0.48 y 0.62 en lugar de divergir limpiamente.
+
+Esa oscilación no es ruido de medición: cada época se evalúa sobre exactamente las mismas 253 imágenes, de modo que los cambios reflejan que el modelo de verdad varía. Con pasos diez veces más pequeños la red no abandona la zona del mínimo, sino que da tirones pequeños por su vecindario, y de vez en cuando cae en una configuración que le resulta particularmente favorable para esas 253 imágenes. Se produjeron así varios descensos bruscos que reiniciaron el contador de la paciencia, en concreto en las épocas 27, 33 y 38.
+
+Esto pone de manifiesto que la paciencia ampliada no fue un detalle menor. Repitiendo la simulación con la paciencia original de 5, el entrenamiento se habría cortado en la \textbf{época 26}, una sola época antes del primer de esos descensos, y el modelo conservado habría sido el de la época 21 con una pérdida de validación de 0.5207. Con la paciencia de 10 se llegó hasta el mínimo de 0.4813 de la época 38. Es un buen ejemplo de por qué la tasa de aprendizaje, el número de épocas y la paciencia tienen que ajustarse juntos.
+
+En cualquier caso, el sobreajuste sigue presente: en la época 48 la precisión de entrenamiento era del 97.72\% frente al 83.79\% de validación, una brecha de casi 14 puntos. Simplemente que con pasos pequeños el camino hasta ese punto es más largo.
+
+\subsubsection{Comparación con el modelo base}
+El Experimento 2 mejora el modelo base en todas las métricas registradas: la pérdida de validación baja de 0.5032 a 0.4813, la precisión de validación sube de 81.82\% a 85.38\% y la precisión de test pasa de 87.80\% a 88.98\%.
+
+Sin embargo, conviene no sobrevalorar esa última cifra. Dado que la división del conjunto es fija, las dos configuraciones se evalúan sobre las \textbf{mismas 254 imágenes}: el modelo base acierta 223 y este 226, una diferencia neta de \textbf{tres imágenes}. Aplicando un contraste de dos proporciones sobre esos datos se obtiene un estadístico $z = 0.42$ con un valor $p = 0.68$, muy lejos del umbral de 0.05, por lo que la diferencia no es estadísticamente significativa y es compatible con el ruido propio de una muestra de ese tamaño.
+
+Lo que sí queda demostrado en este experimento es el efecto de la tasa de aprendizaje sobre la \textbf{dinámica} del entrenamiento: la convergencia es mucho más lenta, la ventana de búsqueda se alarga de 10 a 48 épocas y el modelo explora el mínimo en lugar de atravesarlo. El efecto sobre la precisión final, con estas muestras, no puede determinarse.
 
 \section{Conclusiones Preliminares}
-El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación. Los próximos pasos se centrarán en la ejecución de los experimentos 2 al 5 para analizar si modificaciones en la profundidad de la red, el tamaño de lote, la tasa de aprendizaje o la función de activación permiten superar la marca del 90\% de precisión.
+El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación.
+
+En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. Los experimentos restantes 3 al 5 abordarán la profundidad de la red, el tamaño de lote y la función de activación, con el objetivo de superar la marca del 90\% de precisión.
 
 \end{document}
