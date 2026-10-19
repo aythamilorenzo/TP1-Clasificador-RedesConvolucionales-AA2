@@ -113,7 +113,7 @@ De acuerdo con las instrucciones de la asignatura, se compara un total de 5 conf
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Tabla comparativa del plan de experimentos de hiperparámetros. Las columnas se separan por hiperparámetro para que se aprecie que cada configuración varía una sola cosa respecto al modelo base. \textbf{Ép.} es el número máximo de épocas y \textbf{Pac.} la paciencia del \textit{Early Stopping}.}
+\caption{Tabla comparativa del plan de experimentos de hiperparámetros. En negrita, el hiperparámetro que varía cada configuración respecto al modelo base. \textbf{Ép.} es el número máximo de épocas y \textbf{Pac.} la paciencia del \textit{Early Stopping}.}
 \label{tab:experimentos}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{\linewidth}{c X c c c c c c r}
@@ -121,11 +121,11 @@ De acuerdo con las instrucciones de la asignatura, se compara un total de 5 conf
 \textbf{Exp.} & \textbf{Capas conv.} & \textbf{Neu. FC1} & \textbf{Ép.} & \textbf{Pac.} & \textbf{LR} & \textbf{Batch} & \textbf{Act.} & \textbf{Acc. Test} \\
 \midrule
 \textbf{1} & 3 (16, 32, 64) & 128 & 15 & 5 & 0.001 & 32 & ReLU & \textbf{87.80\%} \\
-\textbf{2} & 3 (16, 32, 64) & 128 & 50 & 10 & 0.0001 & 32 & ReLU & \textbf{88.98\%} \\
-\textbf{3} & 4 (16, 32, 64, 128) & 128 & 50 & 5 & 0.001 & 32 & ReLU & 84.25\% \\
-\textbf{4} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 64 & ReLU & \textit{Pendiente} \\
-\textbf{5} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 32 & LeakyReLU & \textit{Pendiente} \\
-\textbf{6} & 3 (16, 32, 64) & 32 & 50 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
+\textbf{2} & 3 (16, 32, 64) & 128 & 50 & 10 & \textbf{0.0001} & 32 & ReLU & \textbf{88.98\%} \\
+\textbf{3} & \textbf{4 (16, 32, 64, 128)} & 128 & 50 & 5 & 0.001 & 32 & ReLU & 84.25\% \\
+\textbf{4} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & \textbf{64} & ReLU & \textbf{90.55\%} \\
+\textbf{5} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 32 & \textbf{LeakyReLU} & \textit{Pendiente} \\
+\textbf{6} & 3 (16, 32, 64) & \textbf{32} & 50 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
 \bottomrule
 \end{tabularx}
 \setlength{\tabcolsep}{6pt}
@@ -267,9 +267,54 @@ La diferencia de precisión sobre el conjunto de prueba tampoco es significativa
 
 En conjunto, el Experimento 3 no aporta evidencia de que una capa convolucional adicional mejore el clasificador, y sí deja dos observaciones útiles. La primera es que la red más profunda converge de forma más irregular: la pérdida de validación oscila de forma acusada entre las épocas 9 y 20, y en la 18 se dispara hasta 0.8611. Se sobreajusta además con más fuerza, ya que en la época 17 la precisión de entrenamiento alcanza el 98.90\% mientras la pérdida de validación ha dejado de descender. La segunda es que la pérdida sobre el conjunto de prueba resulta considerablemente más alta que en las otras dos configuraciones, 0.6654 frente a 0.4141 y 0.3778, lo que sugiere que la red profunda comete algunos errores con mucha confianza.
 
+\subsection{Experimento 4: tamaño de lote}
+
+El cuarto experimento duplica el tamaño de lote de 32 a 64 imágenes. Es el único hiperparámetro que cambia respecto al modelo base.
+
+Duplicar el lote tiene una consecuencia directa que conviene dejar por escrito: el número de pasos de gradiente por época se reduce a la mitad, de 37 a 18 lotes. Es decir, en cada época el modelo se actualiza la mitad de veces. Por eso el presupuesto de épocas se mantiene generoso, de 50: si se hubiera dejado el tope del modelo base, estaríamos comparando una configuración con el doble de actualizaciones que otra, y el resultado no diría nada sobre el tamaño de lote.
+
+El entrenamiento se detuvo en la época 14 y el mínimo de la pérdida de validación se alcanzó en la \textbf{época 9}.
+
+\begin{table}[H]
+\centering
+\caption{Métricas obtenidas en el Experimento 4 (tamaño de lote 64), medidas sobre los pesos de la época 9.}
+\label{tab:resultados_exp4}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Conjunto de Datos} & \textbf{Pérdida (Loss)} & \textbf{Precisión (Accuracy)} \\
+\midrule
+Entrenamiento & 0.1968 & 93.66\% \\
+Validación & 0.4834 & 86.56\% \\
+\textbf{Prueba (Test)} & \textbf{0.3595} & \textbf{90.55\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{El resultado contradice la expectativa}
+
+La hipótesis de partida apuntaba en el sentido contrario. Un lote pequeño introduce ruido en cada estimación del gradiente, y ese ruido actúa de forma espontánea como un mecanismo de regularización que empuja al modelo hacia mínimos anchos, que generalizan mejor. Un lote grande entrega gradientes más limpios y el modelo se instala en mínidos agudos, que suelen generalizar peor. En la práctica, sin embargo, esta configuración obtiene la \textbf{mejor precisión de todo el estudio}, un 90.55\%.
+
+Tres razones explican el desajuste entre la teoría y la observación.
+
+En primer lugar, el ruido que la teoría atribuye al lote pequeño ya no hacía falta. La red incorpora por su cuenta dos mecanismos de regularización, \texttt{Dropout} con $p=0.25$ y el \textit{Early Stopping}, y con ambos presentes el sobreajuste se mantiene controlado sin necesidad de la ayuda incidental del ruido de muestreo. Lo que en una red sin regularizar sería un beneficio, aquí es un coste: pasos de actualización poco fiables que no compensan nada.
+
+En segundo lugar, cada actualización se estima con el doble de muestras, de modo que apunta más en la dirección del gradiente real. Hay menos pasos, pero cada uno es más certero.
+
+En tercer lugar, la configuración tarda más en sobreajustar: el punto óptimo se alcanza en la época 9, frente a la época 5 del modelo base. Medido en actualizaciones la diferencia es pequeña, 162 frente a 185, pero el modelo de este experimento llega a ese punto con un ajuste más afinado.
+
+\subsubsection{Significancia estadística}
+
+Sobre el conjunto de prueba, el Experimento 4 mejora al modelo base en siete imágenes de 254, con un estadístico $z = 1.00$ y un valor $p = 0.32$, y a la configuración 2 en cuatro imágenes, con $p = 0.56$. Ninguna de las dos diferencias es significativa.
+
+Frente al Experimento 3, en cambio, la ventaja es de \textbf{dieciséis imágenes}, con $z = 2.14$ y $p = 0.032$. Es el único contraste entre configuraciones que supera el umbral habitual de 0.05 en todo el estudio. Cabe matizar que, al tratarse de varias comparaciones simultáneas, una corrección como la de Bonferroni bajaría el umbral a $\approx 0.008$ y dejaría este contraste al límite; conviene por tanto presentarlo como una evidencia moderada y no como una conclusión firme.
+
+Conviene señalar además que esta configuración \textbf{no gana en validación}: su pérdida de validación, 0.4834, y su precisión de validación, 86.56\%, quedan por detrás de las del Experimento 3, que eran 0.3839 y 88.14\%. Gana en el conjunto de prueba y pierde en el de validación. Es un recordatorio más de que las dos muestras de ~253 imágenes no se ponen de acuerdo y de que ninguna de las cifras debe leerse aisladamente.
+
 \section{Conclusiones Preliminares}
 El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación.
 
-En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. El Experimento 3, que profundizaba la red con una capa convolucional adicional, tampoco aportó ninguna mejora medible: alcanzó la pérdida de validación más baja de las tres configuraciones, pero esa ventaja no se trasladó al conjunto de prueba. Los experimentos restantes 4 al 6 abordarán el tamaño de lote, la función de activación y el número de neuronas de la capa densa.
+En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. El Experimento 3, que profundizaba la red con una capa convolucional adicional, tampoco aportó ninguna mejora medible: alcanzó la pérdida de validación más baja de todas las configuraciones, pero esa ventaja no se trasladó al conjunto de prueba. El Experimento 4, con un tamaño de lote duplicado, es hasta ahora la mejor configuración, con un 90.55\% de precisión en el conjunto de prueba y la pérdida más baja registrada, aunque también en este caso la ventaja sobre el modelo base cabe dentro del ruido de muestreo.
+
+Un patrón se repite a lo largo de los cuatro experimentos: la pérdida de validación y la precisión de prueba no van de la mano. La configuración con mejor pérdida de validación es precisamente la que peor resultado obtiene en el conjunto de prueba. Con muestras de 253 y 254 imágenes el desajuste entre ambos conjuntos se mueve en un rango de diez puntos sin que ninguna configuración cambie de estrategia, de modo que ninguna diferencia pequeña debe interpretarse sin contrastarla. Los experimentos restantes 5 y 6 abordarán la función de activación y el número de neuronas de la capa densa.
 
 \end{document}
