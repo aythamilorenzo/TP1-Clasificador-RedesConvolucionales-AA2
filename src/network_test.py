@@ -12,7 +12,7 @@ torch.backends.cudnn.benchmark = False
 model = ConvNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
 
-results_folder = 'results/config2_lr0001'
+results_folder = 'results/config4_batch64'
 model_path = f'{results_folder}/best_conv_model.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()

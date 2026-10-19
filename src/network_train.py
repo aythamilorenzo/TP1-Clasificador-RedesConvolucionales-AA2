@@ -13,7 +13,7 @@ torch.backends.cudnn.benchmark = False
 
 model = ConvNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 print(f'*** Model ready on {device}')
 
@@ -23,11 +23,11 @@ validation_loss_values = []
 train_accuracy_values = []
 validation_accuracy_values = []
 
-patience = 10
+patience = 5
 best_val_loss = float('inf')
 epochs_no_improve = 0
 
-results_folder = 'results/config2_lr0001'
+results_folder = 'results/config4_batch64'
 os.makedirs(results_folder, exist_ok=True)
 
 print('*** Training Started')

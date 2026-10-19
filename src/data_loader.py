@@ -24,6 +24,6 @@ train_dataset, validation_dataset, test_dataset = split_dataset(
     test_size=test_size
 )
 
-train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
-test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=False)
+test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False)
