@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 
 class ConvNet(nn.Module):
   def __init__(self, num_classes):
@@ -29,3 +30,16 @@ class ConvNet(nn.Module):
     x = self.fc2(x)
 
     return x
+
+class TransferNet(nn.Module):
+  def __init__(self, num_classes):
+    super(TransferNet,self).__init__()
+    self.backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+
+    for parameter in self.backbone.parameters():
+      parameter.requires_grad = False
+
+    self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
+
+  def forward(self,x):
+    return self.backbone(x)

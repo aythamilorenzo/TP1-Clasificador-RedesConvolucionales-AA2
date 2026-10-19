@@ -2,7 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from .convolutional_network import ConvNet
+from .convolutional_network import TransferNet
 from .data_loader import dataset, test_dataloader, train_dataloader, validation_dataloader
 from .plot_utils import plot_training_history
 
@@ -11,7 +11,7 @@ torch.manual_seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-model = ConvNet(len(dataset.classes)).to(device)
+model = TransferNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -27,13 +27,14 @@ patience = 5
 best_val_loss = float('inf')
 epochs_no_improve = 0
 
-results_folder = 'results/config4_batch64'
+results_folder = 'results/config9_transfer'
 os.makedirs(results_folder, exist_ok=True)
 
 print('*** Training Started')
 for epoch in range(epochs):
 
     model.train()
+    model.backbone.eval()
     train_loss = 0.0
     train_correct = 0
     train_total = 0

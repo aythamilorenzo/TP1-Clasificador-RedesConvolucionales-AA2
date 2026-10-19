@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .convolutional_network import ConvNet
+from .convolutional_network import TransferNet
 from .data_loader import dataset, test_dataloader
 from .plot_utils import plot_confusion_matrix
 
@@ -9,10 +9,10 @@ torch.manual_seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-model = ConvNet(len(dataset.classes)).to(device)
+model = TransferNet(len(dataset.classes)).to(device)
 criterion = nn.CrossEntropyLoss()
 
-results_folder = 'results/config4_batch64'
+results_folder = 'results/config9_transfer'
 model_path = f'{results_folder}/best_conv_model.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
