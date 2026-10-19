@@ -9,3 +9,4 @@ venv/
 *.pth
 *.pdf
 lab_notes.md
+*.zip
