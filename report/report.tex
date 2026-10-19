@@ -125,7 +125,7 @@ De acuerdo con las instrucciones de la asignatura, se compara un total de 5 conf
 \textbf{3} & \textbf{4 (16, 32, 64, 128)} & 128 & 50 & 5 & 0.001 & 32 & ReLU & 84.25\% \\
 \textbf{4} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & \textbf{64} & ReLU & \textbf{90.55\%} \\
 \textbf{5} & 3 (16, 32, 64) & 128 & 50 & 5 & 0.001 & 32 & \textbf{LeakyReLU} & 87.01\% \\
-\textbf{6} & 3 (16, 32, 64) & \textbf{32} & 50 & 5 & 0.001 & 32 & ReLU & \textit{Pendiente} \\
+\textbf{6} & 3 (16, 32, 64) & \textbf{32} & 50 & 5 & 0.001 & 32 & ReLU & 83.07\% \\
 \bottomrule
 \end{tabularx}
 \setlength{\tabcolsep}{6pt}
@@ -347,11 +347,96 @@ El problema es que ese mismo empujón acelera la memorización. En el punto ópt
 
 En resumen, \texttt{LeakyReLU} aceleró tanto el aprendizaje como el sobreajuste, y en 1183 imágenes de entrenamiento la parada anticipada llegó pronto. El resultado final no mejora, pero la dinámica sí cambia, y esa diferencia entre lo que se mide al final y lo que ocurre durante el entrenamiento es en sí misma un hallazgo.
 
-\section{Conclusiones Preliminares}
-El modelo convolucional inicial ha demostrado una capacidad notable para la clasificación de las 7 categorías de vehículos, alcanzando un \textbf{87.80\% de acierto} en datos totalmente no vistos. La inclusión del mecanismo de \textit{Early Stopping} ha resultado fundamental para evitar el sobreajuste y determinar el instante óptimo de finalización del entrenamiento: sin él, la precisión de entrenamiento habría seguido creciendo hasta casi el 99\% sin mejorar la de validación.
+\subsection{Experimento 6: número de neuronas en la capa densa}
 
-En el Experimento 2, reducir la tasa de aprendizaje en un orden de magnitud mejoró ligeramente todas las métricas, si bien la diferencia de precisión sobre el conjunto de prueba se reduce a tres imágenes y no es significativa. El Experimento 3, que profundizaba la red con una capa convolucional adicional, tampoco aportó ninguna mejora medible: alcanzó la pérdida de validación más baja de todas las configuraciones, pero esa ventaja no se trasladó al conjunto de prueba. El Experimento 4, con un tamaño de lote duplicado, es hasta ahora la mejor configuración, con un 90.55\% de precisión en el conjunto de prueba y la pérdida más baja registrada, aunque también en este caso la ventaja sobre el modelo base cabe dentro del ruido de muestreo. El Experimento 5, que sustituía la activación por \texttt{LeakyReLU}, no produjo ninguna diferencia medible: dos imágenes menos que el modelo base. Sí cambió la dinámica del entrenamiento, acelerando tanto la convergencia como el sobreajuste, pero sin traducirse en una mejora final.
+El sexto y último experimento reduce el número de neuronas de la primera capa densa de 128 a 32. Es el hiperparámetro que más pesa en el modelo: con 128 neuronas y un vector de entrada de 9216 valores, esa sola capa acumula 1.179.648 parámetros, el 94.7\% de la red entera, mientras que las tres capas convolucionales apenas suman 65.104. Con 32 neuronas el modelo queda en 360.487 parámetros, un 71\% menos que el modelo base.
 
-Un patrón se repite a lo largo de los cinco experimentos: la pérdida de validación y la precisión de prueba no van de la mano. La configuración con mejor pérdida de validación es precisamente la que peor resultado obtiene en el conjunto de prueba. Con muestras de 253 y 254 imágenes el desajuste entre ambos conjuntos se mueve en un rango de diez puntos sin que ninguna configuración cambie de estrategia, de modo que ninguna diferencia pequeña debe interpretarse sin contrastarla. El experimento restante, el 6, abordará el número de neuronas de la capa densa.
+La pregunta que abre este experimento es la misma que planteó el análisis de la arquitectura al principio del informe: ¿hace falta toda esa capacidad, o sobra y es la causante del sobreajuste?
+
+\begin{table}[H]
+\centering
+\caption{Métricas obtenidas en el Experimento 6 (capa densa de 32 neuronas), medidas sobre los pesos de la época 7.}
+\label{tab:resultados_exp6}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Conjunto de Datos} & \textbf{Pérdida (Loss)} & \textbf{Precisión (Accuracy)} \\
+\midrule
+Entrenamiento & 0.5688 & 78.61\% \\
+Validación & 0.4937 & 82.61\% \\
+\textbf{Prueba (Test)} & \textbf{0.5205} & \textbf{83.07\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Infraajuste: la señal más nítida del estudio}
+
+La respuesta es que \textbf{no sobraba capacidad}, y el experimento lo demuestra con la señal más clara de las seis. En el punto óptimo, la época 7, la precisión de entrenamiento es del 78.61\% y la de validación del 82.61\%: la primera es \textbf{menor} que la segunda. Es la única configuración de todo el estudio en la que la brecha entre ambos conjuntos resulta negativa, de $-4.00$ puntos, mientras que en las otras cinco va de +3.39 a +11.87.
+
+Una precisión de entrenamiento por debajo de la de validación es la firma inequívoca del \textbf{infraajuste}: al modelo le falta capacidad y ni siquiera sobre los datos que está viendo logra un buen resultado. El \texttt{Dropout} contribuye a esa inversión, porque está activo durante el entrenamiento y se desactiva al evaluar, pero no la explica por sí solo. Lo relevante es que en todas las demás configuraciones la relación iba al revés y la cuestión era cuánto sobreajustaba, no si alcanzaba.
+
+La precisión de entrenamiento confirma la lectura. Donde el modelo base llegaba al 98\% y el Experimento 3 al 97.04\%, aquí se detiene en el 78.61\%, muy por debajo incluso de lo que obtiene en validación.
+
+\subsubsection{Resultado y significancia}
+
+Esta configuración obtiene el \textbf{último lugar}, con un 83.07\% de precisión en el conjunto de prueba. Frente a la mejor configuración del estudio, el Experimento 4, la desventaja es de \textbf{diecinueve imágenes} sobre 254, con un estadístico $z = -2.49$ y un valor $p = 0.013$. Es el segundo contraste significativo que aparece en el trabajo, junto al del Experimento 4 frente al 3, y como aquel no supera el umbral corregido de Bonferroni para seis comparaciones, $\approx 0.008$. Frente al modelo base la diferencia es de doce imágenes con $p = 0.13$, no significativa.
+
+\subsubsection{Lo que cierra el círculo}
+
+Al inicio del informe se observó que la distribución de parámetros del modelo era muy desigual: el 94.7\% se concentraba en una única capa densa y apenas el 5.2\% en las capas convolucionales que procesan la imagen. Este experimento responde a la duda que dejó esa observación. \textbf{La capacidad de esa capa se estaba usando}, y reducirla no regulariza al modelo sino que lo empobrece. La conclusión práctica es que el desequilibrio, aunque llamativo, no es un defecto a corregir: es una consecuencia del aplanado y la arquitectura funciona correctamente con él.
+
+Vale la pena señalar que, otra vez, la validación no coincide con la prueba. La pérdida de validación de esta configuración, 0.4937, es ligeramente \textbf{mejor} que la del modelo base, 0.5032, y su precisión de validación también, 82.61\% frente a 81.82\%. Sin embargo, en el conjunto de prueba pierde 4.73 puntos respecto al modelo base. El patrón se repite por sexta vez.
+
+\section{Conclusiones}
+
+El trabajo cumple los objetivos planteados. El modelo convolucional alcanza un \textbf{90.55\% de precisión} sobre el conjunto de prueba con la configuración 4, superando con holgura el 85\% exigido, y se han comparado un total de \textbf{seis configuraciones}, una más de las cinco requeridas. La parada anticipada basada en la pérdida de validación se ha empleado en todas ellas y ha resultado indispensable: en los seis casos el modelo habría seguido memorizando el conjunto de entrenamiento sin mejorar la generalización.
+
+\begin{table}[H]
+\centering
+\caption{Ranking final de las seis configuraciones ordenado por precisión sobre el conjunto de prueba.}
+\label{tab:ranking}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{c l r c c c}
+\toprule
+\textbf{Pos.} & \textbf{Configuración} & \textbf{Prec. Test} & \textbf{Aciertos} & \textbf{Pérdida} & \textbf{Brecha tr./val.} \\
+\midrule
+1 & 4 --- tamaño de lote 64 & \textbf{90.55\%} & 230/254 & \textbf{0.3595} & +7.10 \\
+2 & 2 --- tasa de aprendizaje $10^{-4}$ & 88.98\% & 226/254 & 0.3778 & +9.38 \\
+3 & 1 --- modelo base & 87.80\% & 223/254 & 0.4141 & +3.39 \\
+4 & 5 --- \texttt{LeakyReLU} & 87.01\% & 221/254 & 0.4736 & +11.87 \\
+5 & 3 --- cuatro capas convolucionales & 84.25\% & 214/254 & 0.6654 & +8.90 \\
+6 & 6 --- capa densa de 32 neuronas & 83.07\% & 211/254 & 0.5205 & \textbf{-4.00} \\
+\bottomrule
+\end{tabular}
+\setlength{\tabcolsep}{6pt}
+\end{table}
+
+\subsection{Hallazgos principales}
+
+\paragraph{Ninguna configuración supera al modelo base de forma significativa.}
+La diferencia entre la mejor, con 90.55\%, y el modelo base, con 87.80\%, se reduce a \textbf{siete imágenes} de 254, con un valor $p = 0.32$. A este tamaño de muestra el margen de error de cada medición es de unos cuatro puntos, de modo que las cuatro primeras posiciones del ranking son, estadísticamente hablando, indistinguibles entre sí. Los dos únicos contrastes significativos del estudio, ambos a favor del Experimento 4, son frente al Experimento 3 ($p = 0.032$) y al Experimento 6 ($p = 0.013$), y ninguno supera el umbral corregido de Bonferroni.
+
+\paragraph{La pérdida de validación no predice la precisión de prueba.}
+Es el patrón más consistente del trabajo. La configuración con mejor pérdida de validación del estudio entero, el Experimento 3 con 0.3839, obtiene el penúltimo resultado en el conjunto de prueba. La del Experimento 6 es ligeramente mejor que la del modelo base y sin embargo pierde casi cinco puntos en la prueba. Con dos muestras independientes de 253 y 254 imágenes, el desajuste entre validación y prueba se mueve en un rango de diez puntos sin que ninguna configuración cambie de estrategia. La lección metodológica es directa: ninguna cifra aislada debe leerse como evidencia.
+
+\paragraph{La brecha entre entrenamiento y validación mide el sobreajuste acumulado.}
+Existe una correlación clara entre la época en la que se guarda el checkpoint y la distancia entre ambas precisiones: la configura\-ción 1 se corta en la época 5 con una brecha de 3.39 puntos, y la 2 en la época 38 con 9.38. Cuanto más dura el entrenamiento antes de que la parada anticipada intervenga, más memorización se acumula. Las dos excepciones son reveladoras: el Experimento 5 se corta pronto pero con la brecha más alta de todas, 11.87 puntos, porque \texttt{LeakyReLU} acelera tanto el aprendizaje como la memorización; y el Experimento 6 es el único con brecha negativa, señal de que la falta de capacidad pesa más que el sobreajuste.
+
+\paragraph{El tamaño de lote fue el único cambio con efecto apreciable.}
+Duplicarlo produjo la mejor configuración del estudio, y además una de las dos diferencias significativas. La explicación es que el ruido que un lote pequeño introduce en el gradiente, y que a veces funciona como regularizador gratuito, aquí ya no hacía falta: la red contaba con \texttt{Dropout} y parada anticipada, de modo que lo que aportaba era únicamente actualizaciones poco fiables. Con el lote grande hay menos pasos por época, pero cada uno se estima con el doble de muestras.
+
+\paragraph{La función de activación no es un factor determinante a esta escala.}
+El Experimento 5 cambió \texttt{ReLU} por \texttt{LeakyReLU} en las cuatro activaciones y la diferencia sobre el modelo base se redujo a dos imágenes. El problema de las neuronas muertas, aunque real, no llega a manifestarse de forma apreciable en una red de cinco capas con dropout y parada anticipada.
+
+\paragraph{La distribución de parámetros no es un defecto.}
+La observación inicial de que el 94.7\% de los pesos se concentran en una única capa densa sugería un posible exceso de capacidad. El Experimento 6 lo descarta: reducir esa capa a 32 neuronas empeora el resultado hasta el último lugar y produce el único caso claro de infraajuste del estudio. La capacidad estaba en uso.
+
+\subsection{Limitaciones}
+
+Los resultados deben interpretarse con la precaución que impone el tamaño de las muestras. Con 254 imágenes en el conjunto de prueba, el margen de error de cada precisión es de unos cuatro puntos, y el trabajo compara hasta seis configuraciones simultáneamente sin aplicar corrección por comparaciones múltiples; por eso los dos contrastes significativos se presentan como evidencia moderada. Por otra parte, todas las comparaciones son de variable única: cada configuración arranca del modelo base y modifica un solo hiperparámetro. Es una decisión deliberada, porque encadenar cambios sobre diferencias menores que el ruido habría introducido azar en la búsqueda, pero tiene un coste claro: no se ha explorado ninguna combinación de hiperparámetros, de modo que no se puede afirmar que la configuración 4 sea la mejor combinación posible sino simplemente la mejor de las aisladas probadas.
+
+\subsection{Trabajo futuro}
+
+Superar el 95\% de precisión con esta arquitectura y este volumen de datos probablemente excede lo que la búsqueda de hiperparámetros puede aportar por sí sola. Las vías más prometedoras serían la \textbf{aumentación de datos}, que multiplicaría el conjunto de entrenamiento sin necesitar imágenes nuevas, y el \textbf{aprendizaje por transferencia}, aprovechando los pesos de una red preentrenada como punto de partida. Ambas atacan la causa del problema, que no es la configuración del modelo sino la cantidad de datos disponibles para entrenarlo.
 
 \end{document}
