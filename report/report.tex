@@ -342,7 +342,7 @@ En tercer lugar, la configuración tarda más en sobreajustar: el punto óptimo 
 
 Sobre el conjunto de prueba, el Experimento 4 mejora al modelo base en siete imágenes de 254, con un estadístico $z = 1.00$ y un valor $p = 0.32$, y a la configuración 2 en cuatro imágenes, con $p = 0.56$. Ninguna de las dos diferencias es significativa.
 
-Frente al Experimento 3, en cambio, la ventaja es de \textbf{dieciséis imágenes}, con $z = 2.14$ y $p = 0.032$. Es el único contraste entre configuraciones que supera el umbral habitual de 0.05 en todo el estudio. Cabe matizar que, al tratarse de varias comparaciones simultáneas, una corrección como la de Bonferroni bajaría el umbral a $\approx 0.008$ y dejaría este contraste al límite; conviene por tanto presentarlo como una evidencia moderada y no como una conclusión firme.
+Frente al Experimento 3, en cambio, la ventaja es de \textbf{dieciséis imágenes}, con $z = 2.14$ y $p = 0.032$. Es el único contraste entre configuraciones que supera el umbral habitual de 0.05 en todo el estudio. Cabe matizar que, al tratarse de varias comparaciones simultáneas, una corrección como la de Bonferroni, que con las nueve comparaciones del estudio bajaría el umbral a $p \approx 0.0056$, lo dejaría fuera; conviene por tanto presentarlo como una evidencia moderada y no como una conclusión firme.
 
 Conviene señalar además que esta configuración \textbf{no gana en validación}: su pérdida de validación, 0.4834, y su precisión de validación, 86.56\%, quedan por detrás de las del Experimento 3, que eran 0.3839 y 88.14\%. Gana en el conjunto de prueba y pierde en el de validación. Es un recordatorio más de que las dos muestras de ~253 imágenes no se ponen de acuerdo y de que ninguna de las cifras debe leerse aisladamente.
 
@@ -421,7 +421,7 @@ La precisión de entrenamiento confirma la lectura. Donde el modelo base llegaba
 
 \subsubsection{Resultado y significancia}
 
-Esta configuración obtiene el \textbf{último lugar}, con un 83.07\% de precisión en el conjunto de prueba. Frente a la mejor configuración del estudio, el Experimento 4, la desventaja es de \textbf{diecinueve imágenes} sobre 254, con un estadístico $z = -2.49$ y un valor $p = 0.013$. Es el segundo contraste significativo que aparece en el trabajo, junto al del Experimento 4 frente al 3, y como aquel no supera el umbral corregido de Bonferroni para seis comparaciones, $\approx 0.008$. Frente al modelo base la diferencia es de doce imágenes con $p = 0.13$, no significativa.
+Esta configuración obtiene el \textbf{último lugar}, con un 83.07\% de precisión en el conjunto de prueba. Frente a la mejor configuración del estudio, el Experimento 4, la desventaja es de \textbf{diecinueve imágenes} sobre 254, con un estadístico $z = -2.49$ y un valor $p = 0.013$. Es el segundo contraste significativo que aparece en el trabajo, junto al del Experimento 4 frente al 3, y como aquel no supera el umbral corregido de Bonferroni, $p \approx 0.0056$. Frente al modelo base la diferencia es de doce imágenes con $p = 0.13$, no significativa.
 
 \subsubsection{Lo que cierra el círculo}
 
@@ -541,7 +541,7 @@ Esta es la razón por la que el Experimento 8 es, en términos de calidad de mod
 La comparación estadística frente al Experimento 4 no es significativa ($z = 0.47$, $p = 0.64$, tres imágenes), y eso obliga a matizar la lectura: \textbf{en precisión, no puede afirmarse que la aumentación sea mejor que la mejor configuración de hiperparámetros}. Sin embargo, el contraste sí resulta significativo frente a las configuraciones más flojas, y aquí aparece el resultado más sólido de todo el trabajo:
 
 \begin{itemize}
-    \item Frente al Experimento 6 (83.07\%): \textbf{+22 imágenes}, $z = 2.94$, $p = 0.0033$. \textbf{Único contraste del estudio que supera el umbral de Bonferroni}, $\approx 0.008$.
+    \item Frente al Experimento 6 (83.07\%): \textbf{+22 imágenes}, $z = 2.94$, $p = 0.0033$. \textbf{Único contraste de la primera fase que supera el umbral de Bonferroni}, $p \approx 0.0056$.
     \item Frente al Experimento 3 (84.25\%): +19 imágenes, $z = 2.59$, $p = 0.0095$, significativo al 5\% pero no tras la corrección.
     \item Frente al modelo base (87.80\%): +10 imágenes, $z = 1.46$, $p = 0.14$, no significativo.
 \end{itemize}
