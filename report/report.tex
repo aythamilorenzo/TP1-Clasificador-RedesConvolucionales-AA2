@@ -19,8 +19,8 @@
 
 \hypersetup{
     colorlinks=true,
-    linkcolor=maincolor,
-    citecolor=maincolor,
+    linkcolor=black,
+    citecolor=black,
     urlcolor=accentcolor
 }
 
@@ -29,7 +29,6 @@
 
 \author{
     Carlos Montesdeoca Vega \quad y \quad Aythami Lorenzo Padilla \\
-    \small Asignatura: Aprendizaje Automático II \\
     \small \url{https://github.com/aythamilorenzo/tp1-clasificador-redesconvolucionales-aa2.git}
 }
 
@@ -39,47 +38,43 @@
 
 \maketitle
 
-\begin{abstract}
-En el marco de la asignatura Aprendizaje Automático II, este trabajo aborda el diseño, entrenamiento y evaluación de un clasificador de imágenes mediante Redes Neuronales Convolucionales (CNN) en PyTorch. El problema consiste en la categorización supervisada de vehículos divididos en 7 clases bien diferenciadas (\textit{auto rickshaws, bikes, cars, motorcycle, plane, ships, trains}). Para garantizar una evaluación justa y evitar la memorización de patrones, las imágenes han sido convertidas al espacio de color RGB, redimensionadas a una resolución fija de $96 \times 96$ píxeles, transformadas a tensores y divididas de forma fija en conjuntos de entrenamiento, validación y prueba. Se ha implementado un mecanismo de parada anticipada (\textit{Early Stopping}) basado en la pérdida de validación para prevenir el sobreajuste. Asimismo, se lleva a cabo un proceso sistemático de búsqueda manual de hiperparámetros comparando un total de nueve configuraciones, organizadas en dos fases: una primera que ajusta hiperparámetros sobre la arquitectura base y una segunda que aborda la normalización de los píxeles, la aumentación de datos y el aprendizaje por transferencia. La búsqueda sobre la arquitectura base no produce ninguna mejora demostrable, mientras que las técnicas de la segunda fase sí, y el aprendizaje por transferencia alcanza un \textbf{99.61\% de precisión} sobre el conjunto de prueba, con 253 aciertos de 254 imágenes.
-\end{abstract}
+{
+  \vspace{-1cm}
+  \renewcommand{\contentsname}{} 
+  \tableofcontents
+  \vspace{-1cm}
+}
+
+\newpage
 
 \section{Introducción y Objetivos}
-El objetivo de esta práctica es abordar un problema de visión por computador mediante el diseño, entrenamiento y ajuste de redes neuronales convolucionales (CNN) sobre un conjunto de datos multiclase de imágenes del mundo real.
+Este trabajo aborda el diseño, entrenamiento y evaluación de un clasificador de imágenes mediante Redes Neuronales Convolucionales (CNN) en PyTorch. 
 
-Los requisitos principales fijados para la práctica son:
-\begin{itemize}
-    \item Trabajar con un conjunto de datos no trivial compuesto por entre 5 y 15 categorías con al menos 50 imágenes por categoría.
-    \item Implementar un mecanismo de parada anticipada (\textit{Early Stopping}) basado en la pérdida de validación para evitar el sobreajuste.
-    \item Realizar y documentar un proceso sistemático de búsqueda manual de hiperparámetros comparando un mínimo de 5 configuraciones diferentes.
-    \item Alcanzar una tasa de precisión en el conjunto de test independiente superior al 85\%.
-    \item Entregar el código fuente limpio sin comentarios junto con la memoria explicativa que incluya gráficas de rendimiento y la matriz de confusión.
-\end{itemize}
+Para ello, se ha llevado a cabo un proceso sistemático de búsqueda manual de hiperparámetros comparando un total de nueve configuraciones, organizadas en dos fases: una primera que ajusta hiperparámetros sobre la arquitectura base y una segunda que aborda la normalización de los píxeles, la aumentación de datos y el aprendizaje por transferencia. La búsqueda sobre la arquitectura base no produce ninguna mejora demostrable, mientras que las técnicas de la segunda fase sí, y el aprendizaje por transferencia alcanza un \textbf{99.61\% de precisión} sobre el conjunto de prueba, con 253 aciertos de 254 imágenes.
 
 \section{Descripción del Dataset y Preprocesamiento}
 El problema seleccionado consiste en la clasificación de medios de transporte estructurado en 7 clases bien diferenciadas: \textit{auto rickshaws}, \textit{bikes}, \textit{cars}, \textit{motorcycle}, \textit{plane}, \textit{ships} y \textit{trains}. El conjunto contiene 1690 imágenes en total, con una distribución razonablemente equilibrada entre categorías (entre 211 y 256 imágenes por clase).
 
-\subsection{Pipeline de Preprocesamiento}
+\subsection{Preprocesamiento}
 Para garantizar la homogeneidad en las entradas entregadas a la red convolucional, se aplica la siguiente cadena de transformaciones a cada imagen:
 \begin{enumerate}
-    \item \textbf{Conversión a espacio RGB:} Se asegura que todas las imágenes tengan 3 canales de color, corrigiendo posibles imágenes en escala de grises o con canal alfa sobrante. Este paso es necesario porque el conjunto contiene imágenes en formato RGBA que de otro modo provocarían un error de dimensionalidad al entrar en la primera capa convolucional.
-    \item \textbf{Redimensionado:} Las imágenes se ajustan a una resolución fija de $96 \times 96$ píxeles mediante \texttt{transforms.Resize()}.
-    \item \textbf{Conversión a Tensor:} Se escalan los valores de los píxeles al rango $[0, 1]$ mediante la función \texttt{transforms.ToTensor()}.
+    \item \textbf{Conversión a espacio RGB:} Se asegura que todas las imágenes tengan 3 canales de color, corrigiendo posibles imágenes en escala de grises o con canal alfa sobrante. Todo esto, con el fin de evitar errores de dimensionalidad en las capas convolucionales.
+    \item \textbf{Redimensionado:} Las imágenes se ajustan a una resolución fija de $96 \times 96$ píxeles.
+    \item \textbf{Conversión a Tensor:} Se escalan los valores de los píxeles al rango $[0, 1]$.
 \end{enumerate}
-
-Esta cadena es la del \textbf{modelo base}, y es la que emplean los Experimentos 1 a 6 sin ninguna modificación. Los Experimentos 7 a 9 la alteran de forma controlada, cada uno para aislar una variable concreta, y el cambio se describe en su correspondiente sección: la normalización de los píxeles en el 7, la aumentación de datos en el 8 y la resolución junto con la normalización de ImageNet en el 9.
 
 \subsection{División del Dataset}
 El conjunto completo de datos se divide aleatoriamente en tres subconjuntos independientes garantizando la reproducibilidad del proceso mediante una semilla fijada (\texttt{seed = 42}):
 \begin{itemize}
-    \item \textbf{Entrenamiento (Train) -- 70\%:} Utilizado para el cálculo de gradientes y actualización de los pesos del modelo. 1183 imágenes.
-    \item \textbf{Validación (Validation) -- 15\%:} Utilizado al final de cada época para evaluar la capacidad de generalización y controlar el \textit{Early Stopping}. 253 imágenes.
-    \item \textbf{Prueba (Test) -- 15\%:} Reservado exclusivamente para la evaluación final tras finalizar el entrenamiento. 254 imágenes.
+    \item \textbf{Entrenamiento (Train) -- 70\%:} 1183 imágenes.
+    \item \textbf{Validación (Validation) -- 15\%:} 253 imágenes.
+    \item \textbf{Prueba (Test) -- 15\%:} 254 imágenes.
 \end{itemize}
 
-La misma semilla se emplea además para la inicialización de los pesos y para el barajado de los lotes durante el entrenamiento. Cabe señalar que esta reproducibilidad es total en CPU, mientras que en GPU queda supeditada a los algoritmos seleccionados por cuDNN; por ello se fuerza explícitamente el modo determinista mediante \texttt{cudnn.deterministic = True} y \texttt{cudnn.benchmark = False}. Gracias a ello, la repetición de una misma configuración devuelve exactamente los mismos resultados.
+La misma semilla se emplea además para la inicialización de los pesos y para el barajado de los lotes durante el entrenamiento. Hay que señalar que esta reproducibilidad es total en CPU, mientras que en GPU, es necesario ajustar algoritmos seleccionados por cuDNN; por ello se fuerza explícitamente el modo determinista mediante \texttt{cudnn.deterministic = True} y \texttt{cudnn.benchmark = False}. Gracias a ello, la repetición de una misma configuración devuelve exactamente los mismos resultados, con la misma precisión decimal.
 
 \section{Arquitectura del Modelo Base (ConvNet)}
-La red convolucional propuesta en el modelo base se compone de tres bloques convolucionales seguidos de dos capas completamente conectadas (\textit{Fully Connected}).
+La red convolucional propuesta en el modelo base se compone de tres capas convolucionales seguidas de dos capas completamente conectadas (\textit{Fully Connected}).
 
 \begin{table}[H]
 \centering
@@ -110,9 +105,9 @@ Durante todo el proceso, cada vez que la pérdida de validación alcanza un nuev
 La paciencia no se mantiene fija en todos los experimentos: al reducirse la tasa de aprendizaje en el Experimento 2 hubo que ampliarla, porque un paso más pequeño tarda más en encontrar un mínimo nuevo y con el valor original el entrenamiento se habría cortado antes de llegar a él.
 
 \section{Plan de Búsqueda de Hiperparámetros}
-De acuerdo con las instrucciones de la asignatura, se comparan un total de 9 configuraciones distintas, frente al mínimo de 5 exigido. La estrategia seguida es la de \textbf{cambiar una sola variable cada vez respecto al modelo base}: todas las configuraciones arrancan de los mismos pesos iniciales y la misma arquitectura del Experimento 1, de modo que cualquier diferencia observada en los resultados pueda atribuirse al hiperparámetro que se ha modificado. La alternativa de ir acumulando cambios sobre la configuración mejor hasta la momento se descartó deliberadamente, ya que con un conjunto de test de 254 imágenes las diferencias pequeñas son indistinguibles del ruido y encadenar decisiones sobre ellas conduciría a elegir el camino por azar.
+Se comparan un total de 9 configuraciones distintas. En cada una, lo que se hace es \textbf{cambiar una sola variable cada vez respecto al modelo base}: todas las configuraciones arrancan de los mismos pesos iniciales y la misma arquitectura del Experimento 1, de modo que cualquier diferencia observada en los resultados pueda atribuirse al hiperparámetro que se ha modificado. La alternativa de ir acumulando cambios sobre la configuración mejor hasta el momento se descartó, ya que con un conjunto de test de 254 imágenes las diferencias pequeñas son indistinguibles del ruido y encadenar decisiones sobre ellas conduciría a elegir el camino por azar.
 
-El estudio se organiza en dos fases. La primera recorre los hiperparámetros clásicos de la red y está recogida en la Tabla~\ref{tab:experimentos}. La segunda, recogida en la Tabla~\ref{tab:experimentos_datos}, aborda mejoras que no son ajustes de un hiperparámetro sino cambios en los datos de entrada y en el propio modelo: la normalización de los píxeles, la aumentación de datos y el aprendizaje por transferencia. Se deja para el final porque son, precisamente, las vías que atacan la causa del problema detectado en la primera fase, que no era la configuración de la red sino la cantidad y la calidad de los datos disponibles para entrenarla.
+El estudio se organiza en dos fases. La primera recorre los hiperparámetros clásicos de la red y está recogida en la Tabla~\ref{tab:experimentos}. La segunda, recogida en la Tabla~\ref{tab:experimentos_datos}, aborda mejoras que no son ajustes de un hiperparámetro sino cambios en los datos de entrada y en el propio modelo: la normalización de los píxeles, data augmentation, y transfer learning. Se deja para el final porque son, precisamente, los métodos que atacan la causa del problema detectado en la primera fase, dónde vimos que el cuello de botella de la red no era una cuestión de hiperparámetros sino la cantidad de datos disponibles.
 
 \begin{table}[H]
 \centering
@@ -135,16 +130,16 @@ El estudio se organiza en dos fases. La primera recorre los hiperparámetros cl�
 \setlength{\tabcolsep}{6pt}
 \end{table}
 
-En el Experimento 2 los valores de épocas y paciencia varían de forma conjunta con la tasa de aprendizaje, ya que los tres forman una única variable experimental: reducir el paso sin ampliar el presupuesto de iteraciones dejaría el modelo a medias y la comparación carecería de sentido. El optimizador se mantiene fijo (\textbf{Adam}) en las nueve configuraciones para aislar el efecto del resto de hiperparámetros.
+En el Experimento 2 los valores de épocas y paciencia varían de forma conjunta con la tasa de aprendizaje, ya que los tres son dependientes entre sí: reducir la tasa de aprendizaje sin aumentar las iteraciones dejaría el modelo a medias y la comparación carecería de sentido. El optimizador se mantiene fijo (\textbf{Adam}) en las nueve configuraciones para aislar el efecto del resto de hiperparámetros.
 
-Se descartó además limitar todas las configuraciones al mismo presupuesto de épocas. Cuando una red tarda más en converger, por ser más profunda o por llevar un tamaño de lote mayor que reduce los pasos de gradiente por época, un tope arbitrario la corta a medias y la comparación deja de ser justa. Por eso el presupuesto se fija de forma generosa y es el \textit{Early Stopping}, y no el número de épocas, quien decide cuándo termina cada experimento. El Experimento 1 es la única excepción, y aun así se detuvo por paciencia y no por tope, con lo que su resultado no se ve afectado.
+Se descartó además utilizar el mismo número de épocas para cada configuración. Cuando una red tarda más en converger, por ser más profunda o por llevar un tamaño de lote mayor que reduce los pasos de gradiente por época, un número pequeño de épocas podría cortar el entrenamiento a medias y la comparación dejaría de ser justa. Por eso el número se fija de forma generosa y es el \textit{Early Stopping}, y no el número de épocas, quién decide cuándo termina cada experimento. 
 
 En todos los casos la selección del mejor punto de parada se realiza sobre la pérdida de validación, sin inspeccionar nunca el conjunto de prueba hasta la evaluación final.
 
 \begin{table}[H]
 \centering
 \footnotesize
-\caption{Tabla comparativa de la segunda fase, sobre los datos de entrada y el modelo. Los Experimentos 7 y 8 conservan la resolución de $96 \times 96$ y la arquitectura del modelo base, de modo que la única diferencia respecto al Experimento 1 es el preprocesamiento. El Experimento 9 sí cambia de arquitectura y de resolución a la vez, y por eso su resultado no se compara variable a variable con el resto: representa la vía completa del aprendizaje por transferencia.}
+\caption{Tabla comparativa de la segunda fase, sobre los datos de entrada y el modelo. Los Experimentos 7 y 8 conservan la resolución de $96 \times 96$ y la arquitectura del modelo base, de modo que la única diferencia respecto al Experimento 1 es el preprocesamiento. El Experimento 9 sí cambia de arquitectura y de resolución a la vez.}
 \label{tab:experimentos_datos}
 \setlength{\tabcolsep}{3pt}
 \begin{tabularx}{\linewidth}{c X X c c}
@@ -152,8 +147,8 @@ En todos los casos la selección del mejor punto de parada se realiza sobre la p
 \textbf{Exp.} & \textbf{Cambio respecto al modelo base} & \textbf{Resolución} & \textbf{Ép.} & \textbf{Acc. Test} \\
 \midrule
 \textbf{7} & Añadir \texttt{transforms.Normalize} & $96 \times 96$ & 50 & 88.98\% \\
-\textbf{8} & Aumentación de datos solo en entrenamiento & $96 \times 96$ & 50 & 91.73\% \\
-\textbf{9} & ResNet-18 preentrenada, congelada salvo la capa de salida & $224 \times 224$ & 50 & \textbf{99.61\%} \\
+\textbf{8} & Data augmentation solo en entrenamiento & $96 \times 96$ & 50 & 91.73\% \\
+\textbf{9} & Transfer Learning con ResNet-18 preentrenada & $224 \times 224$ & 50 & \textbf{99.61\%} \\
 \bottomrule
 \end{tabularx}
 \setlength{\tabcolsep}{6pt}
@@ -189,14 +184,14 @@ Validación & 0.5032 & 81.82\% \\
 \label{fig:curvas_exp1}
 \end{figure}
 
-Como se aprecia en la Figura~\ref{fig:curvas_exp1}, la precisión de entrenamiento sigue creciendo de forma sostenida hasta superar el 98\%, mientras que la de validación se estabiliza entre el 82\% y el 85\%. A partir de la quinta época la brecha entre ambas curvas se ensancha de manera consistente: la pérdida de validación deja de mejorar y oscila al alza mientras la de entrenamiento continúa descendiendo. Este es el comportamiento característico del sobreajuste y justifica la intervención de la parada anticipada, que actúa antes de que la red llegue a memorizar el conjunto de entrenamiento.
+Como se aprecia en la Figura~\ref{fig:curvas_exp1}, la precisión de entrenamiento sigue creciendo de forma sostenida hasta superar el 98\%, mientras que la de validación se estabiliza entre el 82\% y el 85\%. A partir de la quinta época la brecha entre ambas curvas se ensancha de manera consistente: la pérdida de validación deja de mejorar mientras la de entrenamiento continúa descendiendo. Este comportamiento sugiere que a partir de la época 5, la red comienza a sobreajustarse y justifica la intervención de la parada anticipada, que actúa antes de que la red llegue a memorizar el conjunto de entrenamiento.
 
 En el punto óptimo seleccionado la diferencia entre ambas precisiones es de apenas 3.4 puntos, lo que indica que el modelo aún generaliza correctamente en el instante en que se detiene el entrenamiento.
 
 \subsubsection{Evaluación en el conjunto de test}
 Tras la evaluación aislada sobre el conjunto de test utilizando los mejores pesos guardados, el modelo alcanzó una precisión del \textbf{87.80\%}, superando el objetivo fijado del 85\%.
 
-La precisión medida sobre el conjunto de prueba resulta superior a la registrada en validación. Ambos conjuntos son muestras disjuntas de tamaño comparable (254 y 253 imágenes respectivamente), de modo que una diferencia de esta magnitud es perfectamente compatible con el ruido de muestreo esperado a ese tamaño y no constituye una evidencia de que el modelo cometa un error sistemático.
+La precisión medida sobre el conjunto de prueba resulta superior a la registrada en validación. 
 
 \begin{figure}[H]
 \centering
@@ -205,14 +200,14 @@ La precisión medida sobre el conjunto de prueba resulta superior a la registrad
 \label{fig:matriz_confusion_exp1}
 \end{figure}
 
-El análisis de la matriz de confusión (Figura~\ref{fig:matriz_confusion_exp1}) permite extraer las siguientes conclusiones sobre las 7 categorías:
+El análisis de la matriz de confusión permite extraer las siguientes conclusiones sobre las 7 categorías:
 \begin{itemize}
     \item \textbf{Clases con alto rendimiento:} Las categorías con patrones geométricos distintivos como \textit{plane}, \textit{ships} y \textit{trains} presentan tasas de acierto elevadas.
     \item \textbf{Confusiones principales:} Se observan ligeras confusiones entre clases visualmente similares como \textit{bikes} frente a \textit{motorcycle}, así como entre \textit{auto rickshaws} y \textit{cars} debido a la presencia de contextos urbanos parecidos.
 \end{itemize}
 
 \subsection{Experimento 2: tasa de aprendizaje reducida}
-En este segundo experimento lo único que se modifica respecto al modelo base es la tasa de aprendizaje del optimizador, que pasa de $\eta = 0.001$ a $\eta = 0.0001$, es decir, un orden de magnitud por debajo. Como el paso del gradiente se reduce diez veces, el modelo necesita muchas más iteraciones para recorrer la misma distancia, por lo que se amplía de forma asociada el presupuesto de épocas (de 15 a 50) y la paciencia (de 5 a 10).
+En este segundo experimento lo único que se modifica respecto al modelo base es la tasa de aprendizaje del optimizador, que pasa de $\eta = 0.001$ a $\eta = 0.0001$, es decir, un orden de magnitud por debajo. Como el paso del gradiente se reduce diez veces, el modelo necesita muchas más iteraciones para recorrer la misma distancia, por lo que se amplía de forma asociada el número de épocas (de 15 a 50) y la paciencia (de 5 a 10).
 
 El entrenamiento se detuvo en la \textbf{época 48}, habiendo alcanzado el mínimo histórico de pérdida de validación en la \textbf{época 38}. Las métricas de la Tabla~\ref{tab:resultados_exp2} corresponden a ese punto.
 
@@ -239,28 +234,26 @@ Validación & 0.4813 & 85.38\% \\
 \end{figure}
 
 \subsubsection{Comportamiento de la pérdida de validación}
-La curva del Experimento 2 (Figura~\ref{fig:curvas_exp2}) se comporta de forma notablemente distinta a la del modelo base. Mientras que con $\eta = 0.001$ la pérdida de validación alcanzaba su mínimo en la época 5 y a partir de ahí subía de forma prácticamente monótona, con $\eta = 0.0001$ la curva desciende mucho más despacio y, una vez que se estabiliza alrededor de la época 20, \textbf{oscila} entre 0.48 y 0.62 en lugar de divergir limpiamente.
+La curva del Experimento 2 se comporta de forma notablemente distinta a la del modelo base. Mientras que con $\eta = 0.001$ la pérdida de validación alcanzaba su mínimo en la época 5 y a partir de ahí subía de forma prácticamente monótona, con $\eta = 0.0001$ la curva desciende mucho más despacio y, una vez que se estabiliza alrededor de la época 20, \textbf{oscila} entre 0.48 y 0.62 en lugar de divergir limpiamente.
 
-Esa oscilación no es ruido de medición: cada época se evalúa sobre exactamente las mismas 253 imágenes, de modo que los cambios reflejan que el modelo de verdad varía. Con pasos diez veces más pequeños la red no abandona la zona del mínimo, sino que da tirones pequeños por su vecindario, y de vez en cuando cae en una configuración que le resulta particularmente favorable para esas 253 imágenes. Se produjeron así varios descensos bruscos que reiniciaron el contador de la paciencia, en concreto en las épocas 27, 33 y 38.
+Con 'pasos' diez veces más pequeños la red no abandona la zona del mínimo, sino que da tirones pequeños por los alrededores, y de vez en cuando da con una configuración de pesos que resulta favorable. Se produjeron así varios descensos bruscos que reiniciaron el contador de la paciencia, en concreto en las épocas 27, 33 y 38.
 
-Esto pone de manifiesto que la paciencia ampliada no fue un detalle menor. Repitiendo la simulación con la paciencia original de 5, el entrenamiento se habría cortado en la \textbf{época 26}, una sola época antes del primer de esos descensos, y el modelo conservado habría sido el de la época 21 con una pérdida de validación de 0.5207. Con la paciencia de 10 se llegó hasta el mínimo de 0.4813 de la época 38. Es un buen ejemplo de por qué la tasa de aprendizaje, el número de épocas y la paciencia tienen que ajustarse juntos.
+Esto es una prueba de que la paciencia ampliada fue un detalle importante, ya que si repitiéramos la simulación con la paciencia original de 5, el entrenamiento se habría cortado en la \textbf{época 26}, una sola época antes del primero de esos descensos, y el modelo conservado habría sido el de la época 21 con una pérdida de validación de 0.5207. Con la paciencia de 10 se llegó hasta el mínimo de 0.4813 de la época 38. Esto demuestra por qué la tasa de aprendizaje, el número de épocas y la paciencia tienen que ajustarse juntos.
 
-En cualquier caso, el sobreajuste sigue presente: en la época 48 la precisión de entrenamiento era del 97.72\% frente al 83.79\% de validación, una brecha de casi 14 puntos. Simplemente que con pasos pequeños el camino hasta ese punto es más largo.
+En cualquier caso, la red se sigue sobreajustando conforme avanzan las épocas: en la época 48 la precisión de entrenamiento era del 97.72\% frente al 83.79\% de validación, una brecha de casi 14 puntos. Simplemente que con 'pasos' pequeños el camino hasta ese punto es más largo.
 
 \subsubsection{Comparación con el modelo base}
 El Experimento 2 mejora el modelo base en todas las métricas registradas: la pérdida de validación baja de 0.5032 a 0.4813, la precisión de validación sube de 81.82\% a 85.38\% y la precisión de test pasa de 87.80\% a 88.98\%.
 
-Sin embargo, conviene no sobrevalorar esa última cifra. Dado que la división del conjunto es fija, las dos configuraciones se evalúan sobre las \textbf{mismas 254 imágenes}: el modelo base acierta 223 y este 226, una diferencia neta de \textbf{tres imágenes}. Aplicando un contraste de dos proporciones sobre esos datos se obtiene un estadístico $z = 0.42$ con un valor $p = 0.68$, muy lejos del umbral de 0.05, por lo que la diferencia no es estadísticamente significativa y es compatible con el ruido propio de una muestra de ese tamaño.
-
-Lo que sí queda demostrado en este experimento es el efecto de la tasa de aprendizaje sobre la \textbf{dinámica} del entrenamiento: la convergencia es mucho más lenta, la ventana de búsqueda se alarga de 10 a 48 épocas y el modelo explora el mínimo en lugar de atravesarlo. El efecto sobre la precisión final, con estas muestras, no puede determinarse.
+Sin embargo, conviene no sobrevalorar esa última cifra. Ya que la división del conjunto de prueba es fija, ambos experimentos evalúan sobre las mismas \textbf{254 imágenes}, siendo que el experimento base acierta en 223 y este en 226, una diferencia tan pequeña que no es significativa y se le puede atribuir al ruido teniendo en cuenta el tamaño del conjunto de datos.
 
 \subsection{Experimento 3: red más profunda}
 
 El tercer experimento añade una cuarta capa convolucional con 128 filtros, con el mismo tamaño de kernel y padding que las anteriores. El número de neuronas de la capa densa se mantiene en 128, de modo que la profundidad es el único hiperparámetro que cambia respecto al modelo base.
 
-Conviene reparar en una consecuencia no buscada de esa decisión. Al introducir un cuarto bloque de submuestreo, el vector que llega a la capa densa pasa de 9216 a 4608 elementos, y al mantener las 128 neuronas el número de parámetros de \texttt{fc1} se reduce a la mitad, de 1.179.648 a 589.824. En conjunto la red \textbf{no crece sino que encoge}: baja de 1.245.991 a 861.095 parámetros, un 31\% menos. El experimento mide por tanto el efecto de una red más profunda y a la vez más ligera.
+Al introducir un cuarto bloque de submuestreo, el vector que llega a la capa densa pasa de 9216 a 4608 elementos, y al mantener las 128 neuronas el número de parámetros de \texttt{fc1} se reduce a la mitad, de 1.179.648 a 589.824. En conjunto la red \textbf{no crece sino que encoge}: baja de 1.245.991 a 861.095 parámetros, un 31\% menos. El experimento mide por tanto el efecto de una red más profunda y a la vez más ligera.
 
-La primera ejecución se limitó a las 15 épocas heredadas del modelo base y resultó insuficiente: en la última época la pérdida de validación acababa de alcanzar su mínimo histórico (0.3839) y el contador de la paciencia estaba a cero, de forma que el corte no lo produjo el \textit{Early Stopping} sino el presupuesto de épocas. Se amplió dicho presupuesto a 50 épocas dejando intacta la paciencia, que viaja unida a la tasa de aprendizaje y aquí no cambia. Con ese margen el entrenamiento se detuvo en la época 20, sin que se mejorara nunca el mínimo de la época 15, con lo que los pesos conservados y las métricas finales quedaron exactamente igual. Este comportamiento confirma además que la reproducibilidad es efectiva: las primeras 15 épocas se repitieron idénticas hasta la cuarta decimal.
+En la primera ejecución, se estableció un número de 15 épocas heredadas del modelo base y resultó insuficiente: en la última época la pérdida de validación acababa de alcanzar su mínimo histórico (0.3839) y el contador de la paciencia estaba a cero, de forma que el corte no lo produjo el \textit{Early Stopping} sino el número de épocas. Se amplió dicho número a 50 épocas dejando intacta la paciencia. Con ese margen el entrenamiento se detuvo en la época 20, sin que se mejorara nunca el mínimo de la época 15, con lo que los pesos conservados y las métricas finales quedaron exactamente igual. 
 
 \begin{table}[H]
 \centering
@@ -277,23 +270,17 @@ Validación & 0.3839 & 88.14\% \\
 \end{tabular}
 \end{table}
 
-\subsubsection{Una validación excelente y un test discrepo}
+\subsubsection{Una validación excelente y un test discrepante}
 
-La combinación de métricas que arroja este experimento es inusual y merece atención. En validación la configuración 3 es \textbf{la mejor de las tres}: registra la pérdida más baja (0.3839 frente a 0.4813 y 0.5032) y la precisión más alta (88.14\% frente a 85.38\% y 81.82\%). Sin embargo, sobre el conjunto de prueba es \textbf{la peor}, con un 84.25\% frente al 87.80\% y al 88.98\% de los experimentos anteriores.
+ En validación la configuración 3 es \textbf{la mejor de las tres}: registra la pérdida más baja (0.3839 frente a 0.4813 y 0.5032) y la precisión más alta (88.14\% frente a 85.38\% y 81.82\%). Sin embargo, sobre el conjunto de prueba es \textbf{la peor}, con un 84.25\% frente al 87.80\% y al 88.98\% de los experimentos anteriores.
 
-No conviene interpretar esa discrepancia como un fallo sistemático del modelo. Los conjuntos de validación y de prueba son muestras independientes de tamaños comparables, 253 y 254 imágenes, de modo que el propio desajuste entre ambos tiene un margen de error de unos cuatro puntos. Para apreciar cuánto se mueve por sí solo basta comparar con el modelo base, donde la diferencia va en el sentido contrario: 81.82\% en validación frente a 87.80\% en prueba. Entre las dos configuraciones el desajuste varía en más de nueve puntos sin que ninguna haya cambiado de estrategia de entrenamiento, y esa oscilación es precisamente la magnitud que cabe esperar del ruido de muestreo a ese tamaño.
-
-La diferencia de precisión sobre el conjunto de prueba tampoco es significativa: respecto al modelo base hay nueve imágenes menos aciertas sobre 254, con un estadístico $z = -1.15$ y un valor $p = 0.25$.
-
-\subsubsection{Lectura del experimento}
-
-En conjunto, el Experimento 3 no aporta evidencia de que una capa convolucional adicional mejore el clasificador, y sí deja dos observaciones útiles. La primera es que la red más profunda converge de forma más irregular: la pérdida de validación oscila de forma acusada entre las épocas 9 y 20, y en la 18 se dispara hasta 0.8611. Se sobreajusta además con más fuerza, ya que en la época 17 la precisión de entrenamiento alcanza el 98.90\% mientras la pérdida de validación ha dejado de descender. La segunda es que la pérdida sobre el conjunto de prueba resulta considerablemente más alta que en las otras dos configuraciones, 0.6654 frente a 0.4141 y 0.3778, lo que sugiere que la red profunda comete algunos errores con mucha confianza.
+Esto puede atribuirse a simple ruido muestral, los conjuntos de validación y de prueba son muestras independientes de tamaños comparables, 253 y 254 imágenes, de modo que el propio desajuste entre ambos tiene un margen de error de unos cuatro puntos. Para apreciar cuánto se mueve por sí solo basta comparar con el modelo base, donde la diferencia va en el sentido contrario: 81.82\% en validación frente al 87.80\% en prueba. Entre las dos configuraciones el desajuste varía en más de nueve puntos sin que ninguna haya cambiado de estrategia de entrenamiento, y esa oscilación es precisamente la magnitud que cabe esperar del ruido de muestreo a ese tamaño.
 
 \subsection{Experimento 4: tamaño de lote}
 
 El cuarto experimento duplica el tamaño de lote de 32 a 64 imágenes. Es el único hiperparámetro que cambia respecto al modelo base.
 
-Duplicar el lote tiene una consecuencia directa que conviene dejar por escrito: el número de pasos de gradiente por época se reduce a la mitad, de 37 a 18 lotes. Es decir, en cada época el modelo se actualiza la mitad de veces. Por eso el presupuesto de épocas se mantiene generoso, de 50: si se hubiera dejado el tope del modelo base, estaríamos comparando una configuración con el doble de actualizaciones que otra, y el resultado no diría nada sobre el tamaño de lote.
+Duplicar el lote tiene una consecuencia directa: el número de pasos de gradiente por época se reduce a la mitad, de 37 a 18. Es decir, en cada época el modelo se actualiza la mitad de veces. Por eso el número de épocas se mantiene mayor (50): si se hubiera dejado el tope del modelo base, estaríamos comparando una configuración con el doble de actualizaciones que otra, y el resultado no diría nada sobre el tamaño de lote.
 
 El entrenamiento se detuvo en la época 14 y el mínimo de la pérdida de validación se alcanzó en la \textbf{época 9}.
 
@@ -312,45 +299,21 @@ Validación & 0.4834 & 86.56\% \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.90\linewidth]{../results/config4_batch64/training_history.png}
-\caption{Evolución de la pérdida y precisión en entrenamiento y validación (Experimento 4).}
-\label{fig:curvas_exp4}
-\end{figure}
+\subsubsection{Análisis de los resultados}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.65\linewidth]{../results/config4_batch64/test_confusion_matrix.png}
-\caption{Matriz de confusión obtenida sobre el conjunto de test (Experimento 4), la mejor configuración del estudio.}
-\label{fig:matriz_confusion_exp4}
-\end{figure}
+Cuando se aumenta el tamaño de lote, en general, esto conduce a converger hacia mínimos de manera más rápida ya que al promediar el error de más muestras, la varianza es menor y se obtiene una estimación más precisa de la dirección real hasta el mínimo. Sin embargo, esto puede ser un arma de doble filo, ya que cuando aumentamos el tamaño de lote, el ruido disminuye, y la red puede instalarse con más facilidad en mínimos locales; de lo contrario, cuando tenemos lotes más pequeños, ese ruido muchas veces actúa como mecanismo regularizador y puede ayudar a la red a generalizar mejor, llegando hacia mínimos anchos. En la práctica, sin embargo, esta configuración obtiene la \textbf{mejor precisión de todo el estudio}, un 90.55\%.
 
-\subsubsection{El resultado contradice la expectativa}
+Dos razones explican este resultado:
 
-La hipótesis de partida apuntaba en el sentido contrario. Un lote pequeño introduce ruido en cada estimación del gradiente, y ese ruido actúa de forma espontánea como un mecanismo de regularización que empuja al modelo hacia mínimos anchos, que generalizan mejor. Un lote grande entrega gradientes más limpios y el modelo se instala en mínidos agudos, que suelen generalizar peor. En la práctica, sin embargo, esta configuración obtiene la \textbf{mejor precisión de todo el estudio}, un 90.55\%.
+En primer lugar, el ruido que anteriormente se atribuía al lote pequeño ya no hacía falta. La red incorpora por su cuenta dos mecanismos de regularización, \texttt{Dropout} con $p=0.25$ y el \textit{Early Stopping}, y con ambos presentes el sobreajuste se mantiene controlado sin necesidad de la ayuda del ruido de muestreo. 
 
-Tres razones explican el desajuste entre la teoría y la observación.
-
-En primer lugar, el ruido que la teoría atribuye al lote pequeño ya no hacía falta. La red incorpora por su cuenta dos mecanismos de regularización, \texttt{Dropout} con $p=0.25$ y el \textit{Early Stopping}, y con ambos presentes el sobreajuste se mantiene controlado sin necesidad de la ayuda incidental del ruido de muestreo. Lo que en una red sin regularizar sería un beneficio, aquí es un coste: pasos de actualización poco fiables que no compensan nada.
-
-En segundo lugar, cada actualización se estima con el doble de muestras, de modo que apunta más en la dirección del gradiente real. Hay menos pasos, pero cada uno es más certero.
-
-En tercer lugar, la configuración tarda más en sobreajustar: el punto óptimo se alcanza en la época 9, frente a la época 5 del modelo base. Medido en actualizaciones la diferencia es pequeña, 162 frente a 185, pero el modelo de este experimento llega a ese punto con un ajuste más afinado.
-
-\subsubsection{Significancia estadística}
-
-Sobre el conjunto de prueba, el Experimento 4 mejora al modelo base en siete imágenes de 254, con un estadístico $z = 1.00$ y un valor $p = 0.32$, y a la configuración 2 en cuatro imágenes, con $p = 0.56$. Ninguna de las dos diferencias es significativa.
-
-Frente al Experimento 3, en cambio, la ventaja es de \textbf{dieciséis imágenes}, con $z = 2.14$ y $p = 0.032$. Es el único contraste entre configuraciones que supera el umbral habitual de 0.05 en todo el estudio. Cabe matizar que, al tratarse de varias comparaciones simultáneas, una corrección como la de Bonferroni, que con las nueve comparaciones del estudio bajaría el umbral a $p \approx 0.0056$, lo dejaría fuera; conviene por tanto presentarlo como una evidencia moderada y no como una conclusión firme.
-
-Conviene señalar además que esta configuración \textbf{no gana en validación}: su pérdida de validación, 0.4834, y su precisión de validación, 86.56\%, quedan por detrás de las del Experimento 3, que eran 0.3839 y 88.14\%. Gana en el conjunto de prueba y pierde en el de validación. Es un recordatorio más de que las dos muestras de ~253 imágenes no se ponen de acuerdo y de que ninguna de las cifras debe leerse aisladamente.
+En segundo lugar, tal y como se comentaba anteriormente, cada actualización se estima con el doble de muestras, de modo que apunta más en la dirección del gradiente real. Hay menos pasos, pero cada uno es más certero.
 
 \subsection{Experimento 5: función de activación}
 
 El quinto experimento sustituye la función \texttt{ReLU} por \texttt{LeakyReLU} en las cuatro activaciones de la red, tanto en las capas convolucionales como en la primera capa densa. El resto de hiperparámetros coincide con el modelo base.
 
-La diferencia entre ambas es mínima en la fórmula y relevante en el comportamiento. \texttt{ReLU} anula por completo los valores negativos; \texttt{LeakyReLU} les aplica una pendiente del 1\%. El efecto práctico es que con \texttt{ReLU} una neurona que recibe entradas negativas de forma habitual queda con salida cero y gradiente cero, de modo que deja de aprender para siempre. Con \texttt{LeakyReLU} conserva un pequeño gradiente que le permite recuperarse.
+La diferencia entre ambas es mínima en la fórmula y relevante en el comportamiento. \texttt{ReLU} anula por completo los valores negativos; \texttt{LeakyReLU} les aplica una pendiente del 1\%. De manera que, con \textbf{ReLU}, cuando una neurona recibe entradas negativas, la salida y gradiente de esta quedan en 0, de modo que la neurona no aprende. Con \textbf{LeakyReLU}, conserva un pequeño gradiente que le permite seguir aprendiendo.
 
 \begin{table}[H]
 \centering
@@ -371,23 +334,23 @@ Validación & 0.5471 & 82.21\% \\
 
 La hipótesis de partida era que a esta escala el problema de las neuronas muertas no llegaría a manifestarse: con 128 neuronas en la capa densa, inicialización estándar y optimizador Adam, era de esperar que pocas neuronas quedaran inactivas de forma permanente, y por tanto que el efecto de \texttt{LeakyReLU} fuera escaso.
 
-Así fue. Sobre el conjunto de prueba esta configuración acierta 221 de las 254 imágenes, frente a las 223 del modelo base. La diferencia es de \textbf{dos imágenes}, con un estadístico $z = -0.27$ y un valor $p = 0.79$. Ningún otro contraste resulta significativo: frente al Experimento 4 la desventaja es de nueve imágenes ($p = 0.21$) y frente al Experimento 3 una ventaja de siete ($p = 0.38$).
+Así fue. Sobre el conjunto de prueba esta configuración acierta 221 de las 254 imágenes, frente a las 223 del modelo base, la diferencia es de \textbf{dos imágenes}.
 
-Este experimento es el mejor ejemplo de que la comparación de configuraciones no tiene por qué producir una mejora. El requisito de la asignatura es comparar un mínimo de cinco configuraciones, no que todas superen a la anterior, y aquí el resultado concluyente es que \textbf{la función de activación no es un factor determinante en una red de este tamaño}. Dicho de otro modo: el problema de las neuronas muertas, aunque real, no llega a pesar lo suficiente como para alterar la precisión final cuando la red ya dispone de dropout y parada anticipada.
+El resultado concluyente es que \textbf{la función de activación no es un factor determinante en una red de este tamaño}. Dicho de otro modo: el problema de las neuronas muertas, aunque real, no llega a pesar lo suficiente como para alterar la precisión final cuando la red ya dispone de dropout y early stopping.
 
 \subsubsection{Un efecto secundario en la dinámica del entrenamiento}
 
-Donde sí se nota el cambio es en la velocidad. Esta configuración alcanza el 94.08\% de precisión de entrenamiento en la \textbf{época 6}, antes que ninguna otra del estudio, y se detiene en la época 11, la ventana más corta de todas. Al dejar pasar gradiente a través de los valores negativos, las neuronas no quedan inactivas y el modelo puede ajustarse con más ímpetu.
+Donde sí se nota el cambio es en la velocidad. Esta configuración alcanza el 94.08\% de precisión de entrenamiento en la \textbf{época 6}, antes que ninguna otra del estudio, y se detiene en la época 11. Una posible explicación es que, al dejar pasar gradiente a través de los valores negativos, las neuronas no quedan inactivas y el modelo puede ajustarse más rápido.
 
-El problema es que ese mismo empujón acelera la memorización. En el punto óptimo, la época 6, la brecha entre la precisión de entrenamiento y la de validación es de \textbf{11.87 puntos}, la mayor de las nueve configuraciones: las 9.38 del Experimento 2 o las 8.90 del Experimento 3. Además registra la \textbf{peor pérdida de validación de todo el estudio}, 0.5471 frente al 0.3839 del Experimento 3.
+El problema es que ese mismo empujón acelera la memorización. En el punto óptimo, la época 6, la brecha entre la precisión de entrenamiento y la de validación es de \textbf{11.87 puntos}, la \textbf{mayor} de las nueve configuraciones. Además registra la \textbf{peor pérdida de validación de todo el estudio}, 0.5471 frente al 0.3839 del Experimento 3.
 
-En resumen, \texttt{LeakyReLU} aceleró tanto el aprendizaje como el sobreajuste, y en 1183 imágenes de entrenamiento la parada anticipada llegó pronto. El resultado final no mejora, pero la dinámica sí cambia, y esa diferencia entre lo que se mide al final y lo que ocurre durante el entrenamiento es en sí misma un hallazgo.
+En resumen, \texttt{LeakyReLU} aceleró tanto el aprendizaje como el sobreajuste, y en 1183 imágenes de entrenamiento la parada anticipada llegó pronto. El resultado final no mejora, pero la dinámica sí cambia.
 
 \subsection{Experimento 6: número de neuronas en la capa densa}
 
-El sexto y último experimento reduce el número de neuronas de la primera capa densa de 128 a 32. Es el hiperparámetro que más pesa en el modelo: con 128 neuronas y un vector de entrada de 9216 valores, esa sola capa acumula 1.179.648 parámetros, el 94.7\% de la red entera, mientras que las tres capas convolucionales apenas suman 65.104. Con 32 neuronas el modelo queda en 360.487 parámetros, un 71\% menos que el modelo base.
+En este caso, se reduce el número de neuronas de la primera capa densa de 128 a 32. Es el hiperparámetro que más pesa en el modelo: con 128 neuronas y un vector de entrada de 9216 valores, esa sola capa acumula 1.179.648 parámetros, el 94.7\% de la red entera, mientras que las tres capas convolucionales apenas suman 65.104 parámetros. Con 32 neuronas el modelo queda en 360.487 parámetros, un 71\% menos que el modelo base.
 
-La pregunta que abre este experimento es la misma que planteó el análisis de la arquitectura al principio del informe: ¿hace falta toda esa capacidad, o sobra y es la causante del sobreajuste?
+La pregunta que abre este experimento es la siguiente: ¿hace falta toda esa capacidad inicial, o sobra y es la causante del sobreajuste?
 
 \begin{table}[H]
 \centering
@@ -411,29 +374,25 @@ Validación & 0.4937 & 82.61\% \\
 \label{fig:curvas_exp6}
 \end{figure}
 
-\subsubsection{Infraajuste: la señal más nítida del estudio}
+\subsubsection{Infraajuste: la señal más nítida del experimento}
 
 La respuesta es que \textbf{no sobraba capacidad}, y el experimento lo demuestra con la señal más clara de las seis. En el punto óptimo, la época 7, la precisión de entrenamiento es del 78.61\% y la de validación del 82.61\%: la primera es \textbf{menor} que la segunda. Es la única configuración de todo el estudio en la que la brecha entre ambos conjuntos resulta negativa, de $-4.00$ puntos, mientras que en las otras cinco va de +3.39 a +11.87.
 
-Una precisión de entrenamiento por debajo de la de validación es la firma inequívoca del \textbf{infraajuste}: al modelo le falta capacidad y ni siquiera sobre los datos que está viendo logra un buen resultado. El \texttt{Dropout} contribuye a esa inversión, porque está activo durante el entrenamiento y se desactiva al evaluar, pero no la explica por sí solo. Lo relevante es que en todas las demás configuraciones la relación iba al revés y la cuestión era cuánto sobreajustaba, no si alcanzaba.
+Una precisión de entrenamiento por debajo de la de validación sugiere de manera clara que hay \textbf{infraajuste}: al modelo le falta capacidad y ni siquiera sobre los datos que está viendo logra un buen resultado. El \texttt{Dropout} contribuye a esa inversión, porque está activo durante el entrenamiento y se desactiva al evaluar, pero no la explica por sí solo. Lo relevante es que en todas las demás configuraciones la relación iba al revés y la cuestión era cuánto sobreajustaba, no si alcanzaba.
 
-La precisión de entrenamiento confirma la lectura. Donde el modelo base llegaba al 98\% y el Experimento 3 al 97.04\%, aquí se detiene en el 78.61\%, muy por debajo incluso de lo que obtiene en validación.
+En resumen, la precisión de entrenamiento confirma la lectura. Donde el modelo base llegaba al 98\% y el Experimento 3 al 97.04\%, aquí se detiene en el 78.61\%, muy por debajo incluso de lo que obtiene en validación.
 
 \subsubsection{Resultado y significancia}
 
-Esta configuración obtiene el \textbf{último lugar}, con un 83.07\% de precisión en el conjunto de prueba. Frente a la mejor configuración del estudio, el Experimento 4, la desventaja es de \textbf{diecinueve imágenes} sobre 254, con un estadístico $z = -2.49$ y un valor $p = 0.013$. Es el segundo contraste significativo que aparece en el trabajo, junto al del Experimento 4 frente al 3, y como aquel no supera el umbral corregido de Bonferroni, $p \approx 0.0056$. Frente al modelo base la diferencia es de doce imágenes con $p = 0.13$, no significativa.
-
-\subsubsection{Lo que cierra el círculo}
+Esta configuración obtiene el \textbf{último lugar}, con un 83.07\% de precisión en el conjunto de prueba. Frente a la mejor configuración del estudio, el Experimento 4, la desventaja es de \textbf{diecinueve imágenes} sobre 254.
 
 Al inicio del informe se observó que la distribución de parámetros del modelo era muy desigual: el 94.7\% se concentraba en una única capa densa y apenas el 5.2\% en las capas convolucionales que procesan la imagen. Este experimento responde a la duda que dejó esa observación. \textbf{La capacidad de esa capa se estaba usando}, y reducirla no regulariza al modelo sino que lo empobrece. La conclusión práctica es que el desequilibrio, aunque llamativo, no es un defecto a corregir: es una consecuencia del aplanado y la arquitectura funciona correctamente con él.
 
-Vale la pena señalar que, otra vez, la validación no coincide con la prueba. La pérdida de validación de esta configuración, 0.4937, es ligeramente \textbf{mejor} que la del modelo base, 0.5032, y su precisión de validación también, 82.61\% frente a 81.82\%. Sin embargo, en el conjunto de prueba pierde 4.73 puntos respecto al modelo base. El patrón se repite por sexta vez.
-
 \subsection{Experimento 7: normalización de los píxeles}
 
-Los seis experimentos anteriores entregan a la red valores de píxel en el rango $[0, 1]$, sin más ajuste. Este séptimo experimento añade un paso final al pipeline de preprocesamiento, \texttt{transforms.Normalize}, que resta a cada canal su media y divide por su desviación típica. Los valores empleados son los de \textbf{ImageNet}, $\mu = (0.485, 0.456, 0.406)$ y $\sigma = (0.229, 0.224, 0.225)$, y no los calculados sobre el propio conjunto. La elección responde a dos motivos: son los que exigen las redes preentrenadas, de modo que así el Experimento 8 queda aislado y su efecto puede atribuirse al modelo y no al preprocesamiento, y al ser idénticos en todas las imágenes no dependen de ninguna decisión tomada sobre los datos.
+Los seis experimentos anteriores entregan a la red valores de píxel en el rango $[0, 1]$, sin más ajuste. Este séptimo experimento añade un paso final al flujo de preprocesamiento, \texttt{transforms\allowbreak.Normalize}, que resta a cada canal su media y divide por su desviación típica. Los valores empleados son los de \textbf{ImageNet}, $\mu = (0.485, 0.456, 0.406)$ y $\sigma = (0.229, 0.224, 0.225)$, y no los calculados sobre el propio conjunto. Esta decisión responde a dos motivos: son los que exigen las redes preentrenadas, de manera que el Experimento 9 queda aislado y su efecto puede atribuirse al modelo y no al preprocesamiento, y al ser idénticos en todas las imágenes no dependen de ninguna decisión tomada sobre los datos.
 
-El efecto inmediato es que los píxeles oscuros pasan a valores negativos y los claros a valores superiores a uno. Un gris medio, por ejemplo, un valor de $50/255 \approx 0.196$, se transforma en $-1.262$. La imagen no cambia de contenido, pero su representación numérica pasa de estar sesgada hacia valores positivos pequeños a estar centrada en cero.
+La imagen no cambia de contenido, pero su representación numérica pasa de estar sesgada hacia valores positivos pequeños a estar centrada en cero.
 
 \begin{table}[H]
 \centering
@@ -459,21 +418,17 @@ Validación & 0.5333 & 85.38\% \\
 
 \subsubsection{Un efecto enorme en la convergencia}
 
-Lo que más llama la atención de este experimento no es su resultado final sino la velocidad a la que llega a él. En la \textbf{primera época}, la precisión de validación alcanza el \textbf{70.36\%}. Las otras tres configuraciones que comparten con ella el tamaño de lote y la tasa de aprendizaje, y que difieren únicamente en que no normalizan, obtienen en esa misma época un 31.62\% (Experimento 3), un 56.52\% (Experimento 5) y un 34.39\% (Experimento 6). La normalizada casi duplica a las demás en el mismo número de iteraciones, y supera incluso resultados finales de algunas de ellas.
+Algo curioso de este experimento no es su resultado final sino la velocidad a la que llega a él. En la \textbf{primera época}, la precisión de validación alcanza el \textbf{70.36\%}. Las otras tres configuraciones que comparten con ella el tamaño de lote y la tasa de aprendizaje, y que difieren únicamente en que no normalizan, obtienen en esa misma época un 31.62\% (Experimento 3), un 56.52\% (Experimento 5) y un 34.39\% (Experimento 6). La normalizada casi duplica a las demás en el mismo número de iteraciones, y supera incluso resultados finales de algunas de ellas.
 
-La explicación está en cómo se inicializan los pesos. Todos los pesos se sortean con una distribución centrada en cero, de modo que si las entradas están en $[0, 1]$ y con media muy positiva, las primeras capas reciben activaciones sistemáticamente desplazadas y los gradientes resultantes están mal condicionados desde el principio. Al centrar la entrada en cero y escalarla, la salida de cada capa cae de entrada en el rango donde la función de activación tiene más pendiente, y el descenso del gradiente aprovecha mejor cada paso.
-
-Conviene distinguir este efecto del que se medirá en el Experimento 8. Aquí no se ha tocado la cantidad de datos, solo su escala, y el resultado final apenas se mueve.
+La explicación está en cómo se inicializan los pesos. Todos los pesos se sortean con una distribución centrada en cero, de modo que si las entradas están en $[0, 1]$ y con media muy positiva, las primeras capas reciben activaciones desplazadas y los gradientes resultantes están mal condicionados desde el principio.
 
 \subsubsection{Resultado y significancia}
 
-La precisión en el conjunto de prueba es del \textbf{88.98\%}, con 226 aciertos sobre 254, lo que la empatada con el Experimento 2 y la sitúa tercera del ranking provisional. Frente al modelo base la diferencia es de \textbf{solo tres imágenes}, con un estadístico $z = 0.42$ y un valor $p = 0.68$: no significativa. Frente al Experimento 4, el mejor hasta la fecha, la diferencia es de cuatro imágenes con $p = 0.56$, tampoco significativa.
-
-El resultado, por tanto, es que la normalización \textbf{no mejora la precisión final de forma apreciable}. Pero sí produce dos cambios reales que conviene no perder de vista. El primero es la velocidad, ya descrita. El segundo es que la pérdida de validación mínima que alcanza, 0.5333, es peor que la del Experimento 3 (0.3839), mientras que su pérdida de prueba, 0.3779, es la segunda mejor de todo el estudio. Es otro caso de desajuste entre validación y prueba, y refuerza la conclusión ya extraída: ninguna cifra aislada de validación debe leerse como evidencia.
+La precisión en el conjunto de prueba es del \textbf{88.98\%}, con 226 aciertos sobre 254, lo que la empata con el Experimento 2 y la sitúa tercera del ranking hasta ahora. Frente al modelo base la diferencia es de \textbf{solo tres imágenes}, tampoco significativa con este tamaño de datos.
 
 \subsection{Experimento 8: aumentación de datos}
 
-Los siete experimentos anteriores entrenan siempre sobre las mismas 1183 imágenes, transformadas de forma idéntica en cada época. Este experimento ataca esa limitación directamente, sin conseguir ni una sola imagen nueva, mediante \textbf{aumentación de datos}: se aplican transformaciones aleatorias al conjunto de entrenamiento para que la red vea en cada época una versión ligeramente distinta de cada imagen.
+Los siete experimentos anteriores entrenan siempre sobre las mismas 1183 imágenes, transformadas de forma idéntica en cada época. Este experimento ataca esa limitación directamente, sin conseguir ni una sola imagen nueva, mediante \textbf{data augmentation}: se aplican transformaciones aleatorias al conjunto de entrenamiento para que la red vea en cada época una versión ligeramente distinta de cada imagen.
 
 Las cuatro transformaciones empleadas se aplican solo durante el entrenamiento:
 
@@ -484,9 +439,9 @@ Las cuatro transformaciones empleadas se aplican solo durante el entrenamiento:
     \item \textbf{Variación de color} (\texttt{ColorJitter}, brillo, contraste y saturación con factor 0.2): absorbe diferencias de iluminación y de exposición entre fotos.
 \end{itemize}
 
-Se descartaron deliberadamente el volteo vertical, porque un vehículo boca abajo no es un vehículo, y los recortes agresivos, porque un recorte profundo puede comerse el objeto entero y dejar la etiqueta sin sentido.
+Se descartaron deliberadamente el volteo vertical, porque un vehículo boca abajo no es un vehículo, y los recortes agresivos, porque un recorte profundo puede recortar el objeto entero o gran parte de él y dejar la etiqueta sin sentido.
 
-Es fundamental que estas transformaciones afecten \textbf{exclusivamente al conjunto de entrenamiento}. El conjunto de validación y el de prueba se procesan igual que siempre, con el pipeline limpio. Se verificó explícitamente antes de entrenar: dos accesos consecutivos a la misma imagen del conjunto de entrenamiento devuelven tensors distintos, mientras que dos accesos a la misma imagen de validación devuelven exactamente el mismo tensor. Si la aumentación se aplicara también en validación, la métrica con la que se decide cuándo parar cambiaría de significado de una época a otra, y la parada anticipada dejaría de ser comparable.
+Estas transformaciones afectan \textbf{exclusivamente al conjunto de entrenamiento}. El conjunto de validación y el de prueba se procesan igual que siempre, con el pipeline limpio. 
 
 \begin{table}[H]
 \centering
@@ -519,11 +474,11 @@ Validación & 0.2506 & 94.47\% \\
 
 \subsubsection{El sobreajuste desaparece}
 
-La consecuencia más visible de la aumentación es la que se esperaba: la red tarda mucho más en memorizar. El entrenamiento se prolonga hasta la \textbf{época 39}, frente a las 10 a 14 épocas de casi todas las configuraciones anteriores, y la precisión de entrenamiento en el punto óptimo, 93.58\%, queda \textbf{por debajo} de la de validación, 94.47\%. La brecha entre ambos conjuntos, que en las siete configuraciones previas iba de $-4.00$ a $+11.87$ puntos, aquí es de \textbf{$-0.89$}: esencialmente cero sobreajuste.
+La consecuencia más visible de la aumentación es la que se esperaba: la red tarda mucho más en memorizar. El entrenamiento se prolonga hasta la \textbf{época 39}, frente a las 10 a 14 épocas de casi todas las configuraciones anteriores, y la precisión de entrenamiento en el punto óptimo, 93.58\%, queda \textbf{por debajo} de la de validación, 94.47\%. La brecha entre ambos conjuntos, que en las siete configuraciones previas iba de $-4.00$ a $+11.87$ puntos, aquí es de \textbf{$-0.89$}: lo que sugiere ausencia de sobreajuste.
 
-La razón es que el modelo ya no puede memorizar las imágenes porque, cada vez que las ve, las ve distintas. En el Experimento 6 la brecha negativa era señal de \textbf{infraajuste}, una falta de capacidad que impedía aprender siquiera lo que se veía. Aquí el origen es el contrario: la capacidad está, pero los datos se niegan a ser memorizados. Dos brechas negativas con dos causas opuestas, y solo la aumentación produce la que interesa.
+La razón es que el modelo ya no puede memorizar las imágenes porque, cada vez que las ve, las ve distintas.
 
-\subsubsection{Dónde se nota de verdad: la pérdida}
+\subsubsection{Análisis de la pérdida}
 
 La precisión en el conjunto de prueba sube al \textbf{91.73\%}, con 233 aciertos sobre 254, lo que la convierte en la mejor del estudio. Pero la cifra que separa a esta configuración del resto no es esa, sino la \textbf{pérdida}:
 
@@ -532,33 +487,19 @@ La precisión en el conjunto de prueba sube al \textbf{91.73\%}, con 233 acierto
     \item Pérdida sobre el conjunto de prueba: \textbf{0.2666}. La siguiente mejor es 0.3595, la del Experimento 4.
 \end{itemize}
 
-Es una reducción del \textbf{35\%} y del \textbf{26\%} respectivamente. La precisión, en cambio, solo suma tres imágenes sobre el Experimento 4. La diferencia entre ambas métricas es importante y es fácil pasarla por alto: la \textbf{precisión} solo cuenta aciertos y errores, y trata por igual una predicción dudosa que resulta acertada y una predicción correcta pero precaria. La \textbf{pérdida} mide además la \textbf{confianza} con la que el modelo la emitió. Una pérdida mucho menor con una precisión parecida significa que la red acierta con más holgura y, sobre todo, que sus errores son menos catastróficos: cuando se equivoca, no lo hace convencida.
-
-Esta es la razón por la que el Experimento 8 es, en términos de calidad de modelo, el más claro del estudio, aun cuando en precisión bruta la ventaja sobre el Experimento 4 sea de solo tres imágenes.
-
-\subsubsection{Resultado y significancia}
-
-La comparación estadística frente al Experimento 4 no es significativa ($z = 0.47$, $p = 0.64$, tres imágenes), y eso obliga a matizar la lectura: \textbf{en precisión, no puede afirmarse que la aumentación sea mejor que la mejor configuración de hiperparámetros}. Sin embargo, el contraste sí resulta significativo frente a las configuraciones más flojas, y aquí aparece el resultado más sólido de todo el trabajo:
-
-\begin{itemize}
-    \item Frente al Experimento 6 (83.07\%): \textbf{+22 imágenes}, $z = 2.94$, $p = 0.0033$. \textbf{Único contraste de la primera fase que supera el umbral de Bonferroni}, $p \approx 0.0056$.
-    \item Frente al Experimento 3 (84.25\%): +19 imágenes, $z = 2.59$, $p = 0.0095$, significativo al 5\% pero no tras la corrección.
-    \item Frente al modelo base (87.80\%): +10 imágenes, $z = 1.46$, $p = 0.14$, no significativo.
-\end{itemize}
-
-Que este sea el único contraste que sobrevive a la corrección por comparaciones múltiples no es una coincidencia menor. Las comparaciones anteriores medían el efecto de mover un hiperparámetro sobre una misma cantidad de datos; aquí se ha modificado la propia cantidad de datos efectivos, que es donde los seis primeros experimentos habían ido señalando que estaba el cuello de botella.
+Es una reducción del \textbf{35\%} y del \textbf{26\%} respectivamente. La precisión, en cambio, solo suma tres imágenes sobre el Experimento 4. La diferencia entre ambas métricas es importante: la \textbf{precisión} solo cuenta aciertos y errores, y trata por igual una predicción dudosa que resulta acertada y una predicción correcta pero precaria. La \textbf{pérdida} mide además la \textbf{confianza} con la que el modelo la emitió. Una pérdida mucho menor con una precisión parecida significa que la red acierta con más holgura y, sobre todo, que sus errores son 'mejores': cuando se equivoca, no lo hace convencida.
 
 \subsection{Experimento 9: aprendizaje por transferencia}
 
 Los ocho experimentos anteriores entrenan una red desde cero. Este noveno y último plantea la pregunta que venía quedando en el aire tras el Experimento 6: si la red tiene capacidad de sobra pero no le bastan los datos para aprovecharla, ¿y si el problema no es la cantidad de datos sino que la red tiene que aprender demasiadas cosas a la vez?
 
-Una red convolucional entrenada desde cero tiene que descubrir por su cuenta, a partir de 1183 imágenes, dos tareas simultáneamente: \textbf{cómo mirar} (que existen bordes, texturas, contornos y formas) y \textbf{qué distinguir} (que un tren no es un coche). Son muchas cosas para tan pocas muestras. El aprendizaje por transferencia separa las dos: se parte de una red ya entrenada en un corpus enorme y se reutiliza su forma de mirar, dejando que el conjunto de entrenamiento se ocupe solo de la segunda tarea.
+Nuestra red convolucional actual entrenada desde cero tiene que descubrir por su cuenta, a partir de 1183 imágenes, dos tareas simultáneamente: \textbf{cómo mirar} (detectar bordes, texturas, contornos y formas) y \textbf{qué distinguir} (diferenciación entre las distintas clases). Son muchas cosas para tan pocas muestras. El aprendizaje por transferencia separa las dos: se parte de una red ya entrenada y se reutiliza su forma de 'mirar', dejando que el conjunto de entrenamiento se ocupe solo de la segunda tarea.
 
 La red elegida es \textbf{ResNet-18}, preentrenada sobre \textbf{ImageNet}, un conjunto de 1,28 millones de imágenes distribuidas en 1000 clases. El tratamiento aplicado es el siguiente:
 
 \begin{itemize}
     \item Se \textbf{congela} todo el backbone: a sus parámetros se les pone \texttt{requires\_grad = False} y no se actualizan en ningún momento.
-    \item Se \textbf{sustituye} la capa de salida original, que clasificaba en 1000 clases, por una nueva de $512 \rightarrow 7$.
+    \item Se \textbf{sustituye} la capa de salida original, que clasificaba en 1000 clases, por una nueva de $512 \rightarrow 7$ (adaptada a nuestro problema).
     \item Se entrena \textbf{únicamente} esa capa nueva.
 \end{itemize}
 
@@ -580,9 +521,9 @@ ResNet-18 (Experimento 9) & 11.180.103 & \textbf{3.591} \\
 
 La red del Experimento 9 es, en total, casi nueve veces más grande que la del modelo base, pero \textbf{entrena 347 veces menos parámetros}. Los 11.176.512 pesos congelados no son trabajo del experimento: ya vienen hechos.
 
-Dos ajustes son obligatorios y conviene dejarlos explícitos. El primero es la \textbf{resolución}: ResNet-18 fue diseñada con entradas de $224 \times 224$, de modo que las imágenes se redimensionan a ese tamaño en lugar de los $96 \times 96$ de los experimentos anteriores. El segundo es la \textbf{normalización}, que en este caso no es opcional sino exigida por la red: se usan las medias y desviaciones de ImageNet, exactamente las mismas que se emplearon en el Experimento 7. Esos dos cambios son precisamente el motivo de haber aislado la normalización en un experimento propio, en lugar de incluirla directamente aquí: de ese modo, si la configuración 9 mejora, la mejora se atribuye al modelo preentrenado y no al preprocesamiento que lo acompaña.
+Durante el experimento, se han llevado a cabo 2 ajustes necesarios. El primero es la \textbf{resolución}: ResNet-18 fue diseñada con entradas de $224 \times 224$, de modo que las imágenes se redimensionan a ese tamaño en lugar de los $96 \times 96$ de los experimentos anteriores. El segundo es la \textbf{normalización}, que en este caso no es opcional sino exigida por la red: se usan las medias y desviaciones de ImageNet, exactamente las mismas que se emplearon en el Experimento 7. Esos dos cambios son precisamente el motivo de haber aislado la normalización en un experimento propio, en lugar de incluirla directamente aquí: de ese modo, si la configuración 9 mejora, la mejora se atribuye al modelo preentrenado y no al preprocesamiento que lo acompaña.
 
-Existe además un matiz de implementación que no es un detalle menor. Las capas \texttt{BatchNorm}, presentes en ResNet-18, se comportan de forma distinta según el modo en que se ejecuta la red: en modo entrenamiento recalculan sus estadísticas con cada lote, y en modo evaluación usan las que traían guardadas. Congelar los pesos de estas capas \textbf{no basta}, porque aunque sus pesos no se actualicen, sus estadísticas sí lo harían, y con 1183 imágenes se corromperían. Por eso, tras activar el modo entrenamiento de la red, se fuerza el modo evaluación sobre el backbone en cada época. Se verificó el efecto: sin esa línea las estadísticas cambian con cada lote; con ella permanecen intactas.
+Existe además un matiz de implementación que no es un detalle menor. Las capas \texttt{BatchNorm}, presentes en ResNet-18, se comportan de forma distinta según el modo en que se ejecuta la red: en modo entrenamiento recalculan sus estadísticas con cada lote, y en modo evaluación usan las que traían guardadas. Congelar los pesos de estas capas \textbf{no basta}, porque aunque sus pesos no se actualicen, sus estadísticas sí lo harían, y con 1183 imágenes se corromperían. Por eso, tras activar el modo entrenamiento de la red, se fuerza el modo evaluación sobre el backbone en cada época. Se ha verificado el efecto y sin esa línea, las estadísticas cambian con cada lote; con ella permanecen intactas.
 
 \begin{table}[H]
 \centering
@@ -619,52 +560,16 @@ La precisión sobre el conjunto de prueba es del \textbf{99.61\%}: \textbf{253 a
 
 La velocidad es tan llamativa como el resultado. La precisión de validación alcanza el \textbf{99.60\%} en la \textbf{primera época}: con la capa de salida apenas entrenada, las características preentrenadas ya separan las siete clases casi sin esfuerzo. En el resto del entrenamiento, la pérdida de validación desciende de 0.2140 a 0.0053 \textbf{sin estancarse en ninguna de las 50 épocas}, de modo que la parada anticipada nunca se activa y el modelo llega al tope de épocas. Es el único experimento de los nueve en el que el entrenamiento no se interrumpe por sí mismo.
 
-Tampoco hay sobreajuste: la precisión de entrenamiento y la de validación coinciden ambas en el 100\%. La brecha entre conjuntos, que había sido el indicador más informativo de todo el trabajo, se reduce a cero.
-
-\subsubsection{La única imagen fallada}
-
-El único error es la imagen \texttt{Trains/Train (227).jpg}, un tren de alta velocidad que el modelo clasifica como \textit{cars}. La confusión es razonable y no aleatoria: se trata de un tren de perfil aerodinámico, azul y plata, encuadrado de forma cerrada y sin railes visibles, cuya naso curva y carrocería metálica lisa se asemejan mucho a la silueta de un automóvil. En ImageNet, el corpus sobre el que aprendió a mirar, abundan las clases de vehículo con esa forma. El modelo no se equivoca por azar, sino por una ambigüedad que un observador humano también podría cometer.
-
-\subsubsection{Significancia: la primera diferencia indiscutible}
-
-En todos los experimentos anteriores, la comparación estadística había sido un asunto de matices, con contrastes que se quedaban por debajo del umbral corregido de Bonferroni. Aquí la situación es la contraria: \textbf{los nueve contrastes contra cualquier otra configuración superan holgadamente el umbral de Bonferroni}, que para nueve comparaciones queda en $p \approx 0.0056$.
-
-\begin{table}[H]
-\centering
-\caption{Contrastes de proporciones entre el Experimento 9 (253/254) y el resto de configuraciones. El umbral de Bonferroni para nueve comparaciones es $p \approx 0.0056$, y los nueve contrastes lo superan.}
-\label{tab:significancia_exp9}
-\footnotesize
-\begin{tabular}{l r c c}
-\toprule
-\textbf{Frente a la configuración} & \textbf{Diferencia} & \textbf{Estadístico $z$} & \textbf{Valor $p$} \\
-\midrule
-Experimento 6 & +42 imágenes & 6.63 & $3.5 \times 10^{-11}$ \\
-Experimento 3 & +39 imágenes & 6.35 & $2.1 \times 10^{-10}$ \\
-Experimento 5 & +32 imágenes & 5.68 & $1.3 \times 10^{-8}$ \\
-Experimento 1 & +30 imágenes & 5.48 & $4.3 \times 10^{-8}$ \\
-Experimento 2 & +27 imágenes & 5.16 & $2.4 \times 10^{-7}$ \\
-Experimento 7 & +27 imágenes & 5.16 & $2.4 \times 10^{-7}$ \\
-Experimento 4 & +23 imágenes & 4.72 & $2.4 \times 10^{-6}$ \\
-Experimento 8 & +20 imágenes & 4.36 & $1.3 \times 10^{-5}$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Con 253 aciertos sobre 254, el margen de error de la precisión es de solo $\pm 0.77$ puntos, frente a los $\pm 4$ puntos de todas las configuraciones anteriores. La ventaja sobre el Experimento 8, que era el mejor hasta ahora, es de \textbf{veinte imágenes}.
-
-\subsubsection{Comprobación de posibles fugas de datos}
-
-Un resultado tan extremo obliga a descartar la explicación aburrida antes que ninguna otra. El riesgo más habitual en un estudio así es la presencia de imágenes duplicadas repartidas entre los subconjuntos de entrenamiento y de prueba: si una misma fotografía aparece en ambos, el modelo no la está clasificando, la está reconociendo, y la métrica queda inflada sin que se note en la curva de entrenamiento.
-
-Se comprobó el conjunto y sí existen duplicados: hay \textbf{31 grupos de archivos idénticos}, que suman 62 imágenes, de los cuales \textbf{16 cruzan subconjuntos}. Sin embargo, el peso real sobre la evaluación es pequeño. Sólo \textbf{4 de las 254 imágenes de prueba} tienen una copia exacta en entrenamiento o validación, un \textbf{1.6\%}. Ampliando el criterio a casi-duplicados mediante un hash perceptual, la cifra sube a 10 imágenes, un 3.9\%, y la distancia media al vecino de entrenamiento es de 43.6 sobre 256, lo que indica que en general las imágenes de prueba son visualmente distintas.
-
-La comprobación decisiva es esta: descartando por completo esas 4 imágenes, el Experimento 9 obtendría \textbf{249 aciertos sobre 250}, un 99.60\%. El resultado \textbf{no cambia}. Y la imagen que falla no es ninguna de las duplicadas.
-
-Queda además un argumento estructural: las \textbf{nueve configuraciones usan exactamente el mismo reparto}, porque la semilla del split no se toca en ningún experimento. Una fuga, si la hubiera, afectaría por igual a todas, de modo que no puede explicar las \textbf{diferencias} entre ellas. Sí puede inflar ligeramente todas ellas por igual, y conviene tenerlo presente al interpretar las cifras.
+Tampoco hay sobreajuste: la precisión de entrenamiento y la de validación coinciden ambas en el 100\%. La brecha entre conjuntos se reduce a cero.
 
 \section{Conclusiones}
 
-El trabajo cumple los objetivos planteados, y con holgura. El clasificador alcanza un \textbf{99.61\% de precisión} sobre el conjunto de prueba con la configuración 9, que se traduce en \textbf{253 aciertos de 254 imágenes}, superando de largo el 85\% exigido. Se han comparado un total de \textbf{nueve configuraciones}, casi el doble de las cinco requeridas, organizadas en dos fases: una búsqueda de hiperparámetros sobre la arquitectura base y un segundo bloque sobre los datos de entrada y el propio modelo. La parada anticipada basada en la pérdida de validación se ha empleado en todas ellas y ha resultado indispensable: en los ocho primeros casos el modelo habría seguido memorizando el conjunto de entrenamiento sin mejorar la generalización.
+\paragraph{El cuello de botella nunca fue la arquitectura, sino la representación.}
+Los ocho primeros experimentos ajustan la red: profundidad, activación, tamaño de lote, etc. Ninguno consigue una mejora demostrable, y el mejor apenas suma siete imágenes sobre el modelo base. El noveno no modifica ninguno de esos parámetros, sino lo que la red \textbf{sabe} antes de empezar, y suma veinte imágenes sobre el mejor de los anteriores.
+
+Por tanto, la lectura correcta \textbf{no} es que únicamente faltaran datos. El Experimento 9 entrena sobre \textbf{exactamente las mismas 1183 imágenes} que el modelo base, y con las mismas etiquetas. Lo que cambia es que una red entrenada desde cero tiene que hacer dos trabajos a la vez: descubrir \textbf{cómo mirar} y aprender \textbf{qué distinguir}, y 1183 imágenes no dan para las dos cosas. Con la forma de mirar ya resuelta, esas 1183 imágenes se dedican enteras a la segunda tarea, que es mucho más fácil. La red del Experimento 9 entrena 347 veces menos parámetros que la del modelo base y lo hace incomparablemente mejor.
+
+El trabajo cumple los objetivos planteados. El clasificador alcanza un \textbf{99.61\% de precisión} sobre el conjunto de prueba con la configuración 9, que se traduce en \textbf{253 aciertos de 254 imágenes}, superando de largo el 85\% exigido. Se han comparado un total de \textbf{nueve configuraciones} organizadas en dos fases: una búsqueda de hiperparámetros sobre la arquitectura base y un segundo bloque sobre los datos de entrada y el propio modelo. La parada anticipada basada en la pérdida de validación se ha empleado en todas ellas y ha resultado indispensable: en los ocho primeros casos el modelo habría seguido memorizando el conjunto de entrenamiento sin mejorar la generalización.
 
 \begin{table}[H]
 \centering
@@ -689,49 +594,5 @@ El trabajo cumple los objetivos planteados, y con holgura. El clasificador alcan
 \end{tabular}
 \setlength{\tabcolsep}{6pt}
 \end{table}
-
-\subsection{Hallazgos principales}
-
-\paragraph{El cuello de botella nunca fue la arquitectura, sino la representación.}
-Es la conclusión que ordena el resto del trabajo. Los ocho primeros experimentos ajustan la red: profundidad, ancho, activación, optimizador, tamaño de lote, preprocesamiento. Ninguno consigue una mejora demostrable, y el mejor apenas suma siete imágenes sobre el modelo base. El noveno no modifica ninguno de esos parámetros, sino lo que la red \textbf{sabe} antes de empezar, y suma veinte imágenes sobre el mejor de los anteriores, con los ocho contrastes superando el umbral de Bonferroni.
-
-La lectura correcta \textbf{no} es que faltaran datos. El Experimento 9 entrena sobre \textbf{exactamente las mismas 1183 imágenes} que el modelo base, y con las mismas etiquetas. Lo que cambia es que una red entrenada desde cero tiene que hacer dos trabajos a la vez: descubrir \textbf{cómo mirar} y aprender \textbf{qué distinguir}, y 1183 imágenes no dan para las dos cosas. Con la forma de mirar ya resuelta, esas 1183 imágenes se dedican enteras a la segunda tarea, que es mucho más fácil. La red del Experimento 9 entrena 347 veces menos parámetros que la del modelo base y lo hace incomparablemente mejor. El problema nunca fue la cantidad de capacidad, ni la cantidad de datos, sino de dónde salían las características que esa capacidad procesa.
-
-\paragraph{La aumentación de datos es el avance de la primera fase.}
-Dentro del bloque de datos, la aumentación es el único cambio con respaldo estadístico sólido. Es la única configuración del primer bloque cuyo contraste supera el umbral corregido de Bonferroni, y lo hace frente al Experimento 6 con $p = 0.0033$. La explicación es coherente con lo anterior: los siete primeros experimentos movían hiperparámetros sobre una cantidad de datos fija, mientras que aquí se ha modificado la cantidad de datos \textbf{efectivos}, que es justo donde apuntaba el diagnóstico. Aun así, su ventaja sobre el Experimento 4 es de solo tres imágenes y no es significativa ($p = 0.64$), de modo que la afirmación sólida es que la aumentación supera claramente a las configuraciones flojas, no que sea demostradamente mejor que la mejor de hiperparámetros.
-
-\paragraph{La pérdida distingue lo que la precisión no distingue.}
-La precisión es una métrica \textbf{tosca}: cuenta aciertos y errores y trata igual una predicción segura que una afortunada, pero no mide la confianza con la que se emitió. Se ve en dos momentos del trabajo. El Experimento 8 gana al 4 solo tres imágenes en precisión y sin embargo su pérdida de prueba es un \textbf{26\% menor}, 0.2666 frente a 0.3595, y su pérdida de validación mínima un 35\% menor. Quien evaluara solo la precisión concluiría que las configuraciones 4 y 8 son equivalentes, y no lo son. Y la escala en la que el Experimento 9 resulta abrumador es todavía más elocuente: su ventaja en precisión sobre el Experimento 8 es de veinte imágenes, pero su pérdida de prueba es \textbf{veinte veces menor}.
-
-\paragraph{La brecha entre entrenamiento y validación mide el sobreajuste acumulado, y no siempre significa lo mismo.}
-Existe una correlación clara entre la época en la que se guarda el checkpoint y la distancia entre ambas precisiones: la configura\-ción 1 se corta en la época 5 con una brecha de 3.39 puntos, y la 2 en la época 38 con 9.38. Cuanto más dura el entrenamiento antes de que la parada anticipada intervenga, más memorización se acumula. Hay tres excepciones, y las tres son reveladoras. El Experimento 5 se corta pronto pero con la brecha más alta de todas, 11.87 puntos, porque \texttt{LeakyReLU} acelera tanto el aprendizaje como la memorización. El Experimento 6 es el único con brecha negativa por \textbf{falta de capacidad}, un infraajuste. Y el Experimento 8 la tiene negativa, $-0.89$, pero por el motivo exactamente opuesto: \textbf{la capacidad está, pero los datos se niegan a ser memorizados}. Tener una brecha negativa no es un mérito en sí mismo; hay que preguntarse por qué. El Experimento 9 la reduce a cero, con ambos conjuntos en el 100\%, que es el estado en el que el indicador deja de aportar información porque ya no hay nada que regular.
-
-\paragraph{La normalización acelera la convergencia sin cambiar el resultado final.}
-Añadir \texttt{transforms.Normalize} hizo que la precisión de validación llegara al 70.36\% en la primera época, frente al 31.62\%, el 34.39\% y el 56.52\% de las tres configuraciones que comparten con ella el resto de parámetros y no normalizan. Es una diferencia enorme en velocidad. El resultado final, en cambio, se mueve solo tres imágenes sobre el modelo base. La razón es que el optimizador Adam corrige por sí solo el escalado de los gradientes a medio plazo; la normalización condiciona bien el arranque, pero no cambia el punto al que converge. Sirve para entrenar antes, no para acertar más. Su utilidad real aparece después, como requisito del Experimento 9.
-
-\paragraph{La pérdida de validación no predice la precisión de prueba.}
-Sigue siendo el patrón más consistente del trabajo, y los experimentos nuevos lo confirman. La configuración con mejor pérdida de validación de las seis primeras, el Experimento 3 con 0.3839, obtiene el penúltimo resultado en el conjunto de prueba. La del Experimento 6 es ligeramente mejor que la del modelo base y sin embargo pierde casi cinco puntos. El Experimento 7 invierte la relación en el sentido contrario: su pérdida de validación, 0.5333, es \textbf{peor} que la del Experimento 3, 0.3839, pero su pérdida de prueba es \textbf{mucho mejor}, 0.3779 frente a 0.6654. Con dos muestras independientes de 253 y 254 imágenes, el desajuste entre validación y prueba se mueve en un rango de diez puntos sin que ninguna configuración cambie de estrategia. La lección metodológica es directa: ninguna cifra aislada debe leerse como evidencia. La única excepción es el Experimento 9, donde la ventaja es tan grande que todas las métricas coinciden.
-
-\paragraph{La función de activación no es un factor determinante a esta escala.}
-El Experimento 5 cambió \texttt{ReLU} por \texttt{LeakyReLU} en las cuatro activaciones y la diferencia sobre el modelo base se redujo a dos imágenes. El problema de las neuronas muertas, aunque real, no llega a manifestarse de forma apreciable en una red de cinco capas con dropout y parada anticipada.
-
-\paragraph{La distribución de parámetros no es un defecto.}
-La observación inicial de que el 94.7\% de los pesos se concentraban en una única capa densa sugería un posible exceso de capacidad. El Experimento 6 lo descarta: reducir esa capa a 32 neuronas empeora el resultado hasta el último lugar y produce el único caso claro de infraajuste del estudio. El Experimento 9 lo confirma por el camino contrario: suma casi nueve veces más parámetros totales que el modelo base y entrena 347 veces menos, y es incomparablemente mejor. Que una red tenga muchos pesos no es un problema, ni que tenga pocos sea una virtud; lo que importa es de dónde salen las características que esos pesos procesan.
-
-\subsection{Limitaciones}
-
-Los resultados deben interpretarse con la precaución que impone el tamaño de las muestras. Con 254 imágenes en el conjunto de prueba, el margen de error de cada precisión es de unos cuatro puntos para las ocho primeras configuraciones, y solo de $\pm 0.77$ puntos para la novena, que acierta 253 de 254. El trabajo compara nueve configuraciones simultáneamente sin aplicar corrección por comparaciones múltiples salvo donde se indica explícitamente; por eso los contrastes significativos que no superan el umbral de Bonferroni se presentan como evidencia moderada y no como una conclusión. Las ocho primeras comparaciones son de variable única: cada configuración arranca del modelo base y modifica un solo hiperparámetro. Es una decisión deliberada, porque encadenar cambios sobre diferencias menores que el ruido habría introducido azar en la búsqueda, pero tiene un coste claro: no se ha explorado ninguna combinación de hiperparámetros.
-
-Un límite importante afecta al Experimento 9, que es el más relevante del trabajo. Un resultado tan extremo obliga a descartar la explicación más prosaica, la presencia de imágenes duplicadas repartidas entre los subconjuntos de entrenamiento y de prueba. La comprobación se hizo y sí existen duplicados: 31 grupos de archivos idénticos que suman 62 imágenes, de los cuales 16 cruzan subconjuntos. Sin embargo, su peso real es pequeño: solo \textbf{4 de las 254 imágenes de prueba} tienen una copia exacta en entrenamiento o validación, un 1.6\%, y ampliando el criterio a casi-duplicados mediante un hash perceptual la cifra sube a 10, un 3.9\%. Descartando por completo esas cuatro imágenes, el resultado del Experimento 9 sería de 249 aciertos sobre 250, un 99.60\%, es decir prácticamente idéntico, y la única imagen que falla no es ninguna de las duplicadas. Además, las \textbf{nueve configuraciones usan el mismo reparto}, porque la semilla de la división no se modifica en ningún experimento, de modo que una fuga afectaría por igual a todas y no puede explicar las diferencias entre ellas. Puede inflar ligeramente todas ellas por igual, y conviene tenerlo presente al interpretar las cifras.
-
-También conviene matizar el alcance del Experimento 9. Con una sola imagen mal clasificada, la muestra de prueba ya no es capaz de discriminar entre configuraciones: cualquier mejora posterior se traduciría en cero o una imagen, y sería indistinguible del azar. El resultado se acerca al techo de lo que este conjunto de prueba puede medir.
-
-\subsection{Trabajo futuro}
-
-Los experimentos pendientes ya no son los que se anticipaban al principio del trabajo. La aumentación y el aprendizaje por transferencia, las dos vías que se apuntaban como prometedoras, están probadas, y ninguna de las dos deja margen inmediato: la segunda ha llevado el modelo a 253 aciertos de 254, y la muestra ya no puede distinguir mejoras posteriores.
-
-El paso más útil sería por tanto \textbf{ampliar y limpiar el conjunto de evaluación}. Un conjunto de prueba más grande, y con los duplicados resueltos antes de dividir, permitiría comparar configuraciones con resolución estadística real y confirmar si las diferencias pequeñas de la primera fase son o no artefactos de la muestra. Junto a ello, la vía más prometedora a medio plazo es el \textbf{descongelado gradual del backbone}, afinando las últimas capas de ResNet-18 con una tasa de aprendizaje muy pequeña en lugar de limitar el entrenamiento a la capa de salida. Es el paso natural cuando la transferencia funciona tan bien como aquí.
-
-Finalmente, el propio Experimento 6 apunta en una dirección que el Experimento 9 confirma: la red tiene capacidad de sobra para este problema, y lo que le faltaba no eran parámetros sino saber de dónde sacar las características. Ese diagnóstico, más que cualquier ajuste de hiperparámetro, es lo que convendría aplicar a cualquier problema nuevo de clasificación de imágenes con pocos datos.
 
 \end{document}
