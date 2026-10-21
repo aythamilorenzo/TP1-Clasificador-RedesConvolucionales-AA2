@@ -1,1 +1,4 @@
 * text=auto eol=lf
+*.tex linguist-documentation
+*.sty linguist-documentation
+*.cls linguist-documentation
